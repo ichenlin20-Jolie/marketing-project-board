@@ -265,6 +265,7 @@ var ROLE_NOTE={
 var PERM={dev:['商品開發','行銷'],mktInfo:['行銷'],addProduct:['商品開發','行銷'],plan:['行銷'],planSales:['業務','行銷'],kol:['行銷','業務'],kolMkt:['行銷'],sales:['業務','行銷'],settings:['行銷']};
 var DEF={cats:['實體','網紅','電商','團購','直播','贈品','平台','其他'],stages:['提報','上架','檔期','活動','種草','開團','直播'],
   platforms:['IG','FB','YT','Threads','官方平台'],reps:['馨鄞','雅慧'],kolTypes:['網紅','團購','直播','電商']};
+var GRADES=['S','I'];
 var KOL_STATUS=['洽談中','已寄樣','開團中','已結團','不開團'];
 var KOL_CLS={'洽談中':'n','已寄樣':'i','開團中':'ok','已結團':'x','不開團':'bad'};
 var SAMPLE_ST=['未排','已排定','已寄出','已到貨'];
@@ -326,6 +327,8 @@ function kolsOf(pid){return vals(S.kols).filter(function(x){return x.pid===pid;}
 function salesOf(pid){return vals(S.sales).filter(function(x){return x.pid===pid;});}
 function timing(s,e){var t=today();if(!s)return 'none';if(s>t)return 'soon';if(e&&e<t)return 'done';return 'live';}
 function overlaps(s,e,ps,pe){return s&&s<=pe&&(!e||e>=ps);}
+function shootD(p){if(p.sampleShootDate!=null)return p.sampleShootDate;return p.sampleDate||'';}
+function kolD(p){return p.sampleKolDate||'';}
 function bulkD(p){if(p.bulkDate!=null)return p.bulkDate;return p.bulkActual||p.bulkPlan||'';}
 function unitPrice(k){var p=S.products[k.pid]||{};var g=num(p.groupPrice);if(g==null)g=num(k.groupPrice);if(g==null)g=num(p.price);if(g==null)g=num(k.price);return g||0;}
 function kolNet(k){return (Number(k.qty)||0)*unitPrice(k);}
@@ -418,7 +421,7 @@ function card(p){
   var src=imgSrc(p);
   return '<button class="card" data-act="open" data-id="'+esc(p.id)+'" aria-label="開啟 '+esc(p.model)+' 詳細資料">'+
     '<div class="pimg">'+(src?'<img src="'+esc(src)+'" alt="'+esc(p.model)+' 產品圖" loading="lazy">':'<span>尚無產品圖</span>')+'</div>'+
-    '<div class="card-h"><span class="code">'+esc(p.model)+'</span><span class="pname">'+esc(p.mktOwner?'行銷 '+p.mktOwner:'')+'</span></div>'+
+    '<div class="card-h"><span><span class="code">'+esc(p.model)+'</span> '+gradeChip(p)+'</span><span class="pname">'+esc(p.mktOwner?'行銷 '+p.mktOwner:'')+'</span></div>'+
     '<div class="pname" style="margin-top:-6px">推廣期間 '+esc(p.period||'未填')+'</div>'+
     '<div><div class="sub">通路規劃：進行中（含確定與預估）</div><div class="gcounts">'+gs+'</div></div>'+
     '<div><div class="sub">網紅／團購</div><div class="chips">'+(kchips||'<span class="stamp">尚無名單</span>')+'</div></div>'+
@@ -453,7 +456,7 @@ function viewTimeline(){
   head+='</div></div>';
   var rows='';
   prods.forEach(function(p){
-    rows+=row('<span>'+esc(p.model)+' '+esc(p.name||'')+'</span>',ms(p.sampleDate,'s','◆','樣品到貨 '+(p.sampleDate||''))+ms(bulkD(p),'b','▲','大貨到貨 '+bulkD(p)),'tl-prod');
+    rows+=row('<span>'+esc(p.model)+' '+esc(p.name||'')+'</span>',ms(shootD(p),'s','◆','拍攝／設計樣品 '+shootD(p))+ms(kolD(p),'s','◇','網紅業配樣品 '+kolD(p))+ms(bulkD(p),'b','▲','大貨到貨 '+bulkD(p)),'tl-prod');
     var ps=plansOf(p.id).filter(function(x){return x.start;});
     if(ps.length){rows+=row('<span>通路規劃</span>','','tl-group');
       ps.forEach(function(x){rows+=row(catTag(x.cat)+'<span>'+esc(x.name)+'</span>',bar(x.start,x.end,CAT_COLOR[x.cat]||'#7d8a97',x.name+(x.stage?' '+x.stage:''),x.name+' '+(x.stage||'')+' '+x.start+' ~ '+(x.end||'未定')+(x.confirm?'（'+x.confirm+'）':''),x.confirm==='預估'));});}
@@ -472,7 +475,7 @@ function viewTimeline(){
   if(!prods.length)return h+'<div class="empty">沒有可顯示的型號。</div>';
   h+='<div class="tl-wrap"><div class="tl">'+head+rows+line+'</div></div><div class="legend">'+
     ['實體','網紅','電商','團購','直播','贈品'].map(function(c){return '<span><i style="background:'+CAT_COLOR[c]+'"></i>'+c+'</span>';}).join('')+
-    '<span>淡色虛線框＝預估</span><span style="color:var(--r-dev)">◆ 樣品</span><span style="color:var(--bad-ink)">▲ 大貨</span><span style="color:var(--bad-ink)">▏紅線＝今天</span></div>';
+    '<span>淡色虛線框＝預估</span><span style="color:var(--r-dev)">◆ 拍攝／設計樣品　◇ 網紅業配樣品</span><span style="color:var(--bad-ink)">▲ 大貨</span><span style="color:var(--bad-ink)">▏紅線＝今天</span></div>';
   return h;
 }
 
@@ -503,7 +506,9 @@ function viewReport(){
     '<div class="tile"><b>'+money(kq)+'</b><span>網紅／團購銷量　淨營業額 '+money(kn)+'</span></div></div>';
   var ms=[];
   productList().forEach(function(p){
-    if(p.sampleDate&&p.sampleDate>=P.s&&p.sampleDate<=P.e)ms.push([p.sampleDate,p.model,'樣品',p.sampleDate<=today()?'已到貨':'預計']);
+    [[shootD(p),'拍攝／設計樣品'],[kolD(p),'網紅業配樣品']].forEach(function(x){
+      if(x[0]&&x[0]>=P.s&&x[0]<=P.e)ms.push([x[0],p.model,x[1],x[0]<=today()?'已到貨':'預計']);
+    });
     var bd=bulkD(p);if(bd&&bd>=P.s&&bd<=P.e)ms.push([bd,p.model,'大貨',bd<=today()?'已到貨':'預計']);
   });
   ms.sort();
@@ -597,19 +602,32 @@ function inp(label,type,col,field,val,dis,cls){
 function sel(label,col,field,arr,val,dis){
   return '<label class="f">'+label+'<select data-col="'+col+'" data-field="'+field+'"'+dis+'>'+opts(arr,val||arr[0])+'</select></label>';
 }
+function gradeChip(p){var g=p&&p.grade;if(GRADES.indexOf(g)<0)return '';return chip({S:'w',I:'i',II:'n'}[g],g+' 級');}
+function delProdLabel(p){
+  var n=plansOf(p.id).length+kolsOf(p.id).length+salesOf(p.id).length;
+  return S.confirm['d'+p.id]?('再按一次確認刪除（連同 '+n+' 筆資料，無法復原）'):'刪除型號';
+}
+function deleteProduct(id){
+  plansOf(id).forEach(function(x){del('plans/'+x.id);});
+  kolsOf(id).forEach(function(x){del('kols/'+x.id);});
+  salesOf(id).forEach(function(x){del('sales/'+x.id);});
+  del('products/'+id);
+  closeModal();
+}
 function modalProduct(p){
   var dd=can('dev')?'':' disabled',dm=can('mktInfo')?'':' disabled';
-  var h='<div class="panel" role="dialog" aria-modal="true" aria-label="'+esc(p.model)+'"><div class="panel-h"><div><div class="code">'+esc(p.model)+'</div><div class="pname">'+esc(p.name||'')+(p.period?' · 規劃期間 '+esc(p.period):'')+'</div></div><button class="btn" data-act="close">關閉</button></div><div class="panel-b">';
+  var h='<div class="panel" role="dialog" aria-modal="true" aria-label="'+esc(p.model)+'"><div class="panel-h"><div><div class="code">'+esc(p.model)+' '+gradeChip(p)+'</div><div class="pname">'+esc(p.name||'')+(p.period?' · 規劃期間 '+esc(p.period):'')+'</div></div><div style="display:flex;gap:8px"><button class="btn danger" data-act="delProduct" data-id="'+esc(p.id)+'"'+(can('addProduct')?'':' disabled title="商品開發或行銷可刪除型號"')+'>'+delProdLabel(p)+'</button><button class="btn" data-act="close">關閉</button></div></div><div class="panel-b">';
   var canImg=!!(assetsNS&&(can('mktInfo')||can('dev'))),isrc=imgSrc(p);
   h+='<section class="sec"><div class="sec-h"><h3>產品圖</h3><small>建議用去背 PNG 或白底圖，顯示在型號卡片上方</small></div><div class="imgbox"><div class="pimg">'+(isrc?'<img src="'+esc(isrc)+'" alt="'+esc(p.model)+' 產品圖">':'<span>尚無產品圖</span>')+'</div><div>'+
     (canImg?'<label class="btn primary" style="display:inline-block">'+(isrc?'更換圖片':'上傳圖片')+'<input type="file" id="imgUp" accept="image/png,image/jpeg,image/webp" hidden></label> '+(isrc?'<button class="btn" data-act="clearImg">移除圖片</button>':''):'<p class="hint" style="margin:0">'+(assetsNS?'行銷或商品開發可以上傳圖片。':'你目前的權限無法上傳圖片，請頁面擁有者把你設為 Contributor 以上。')+'</p>')+
     (S.imgMsg?'<p class="hint">'+esc(S.imgMsg)+'</p>':'')+'</div></div></section>';
   h+='<section class="sec dev"><div class="sec-h"><h3>商品進度</h3><small>樣品、大貨由商品開發填寫；品名、圖檔、素材由行銷填寫（行銷可改全部）</small><span class="lock">'+esc(stamp(p))+'</span></div><div class="grid2">'+
     '<div class="box"><h4>商品開發 '+lockNote('dev','商品開發')+'</h4><div class="fields">'+
-      inp('樣品到貨日期','date','products','sampleDate',p.sampleDate,dd)+inp('大貨到貨日期','date','products','bulkDate',bulkD(p),dd)+
+      inp('拍攝／設計樣品日期','date','products','sampleShootDate',shootD(p),dd)+inp('網紅業配樣品日期','date','products','sampleKolDate',kolD(p),dd)+inp('大貨到貨日期','date','products','bulkDate',bulkD(p),dd)+
       inp('樣品說明','text','products','sampleNote',p.sampleNote,dd,'wide')+'</div></div>'+
     '<div class="box"><h4>行銷 '+lockNote('mktInfo','行銷')+'</h4><div class="fields">'+
       inp('品名','text','products','name',p.name,dm)+inp('行銷負責人','text','products','mktOwner',p.mktOwner,dm)+
+      '<label class="f">產品分級<select data-col="products" data-field="grade"'+dm+'><option value="">未分級</option>'+GRADES.map(function(g){return '<option'+(p.grade===g?' selected':'')+'>'+g+'</option>';}).join('')+'</select></label>'+
       inp('規劃期間','text','products','period',p.period,dm)+inp('網圖日期','date','products','artDate',p.artDate,dm)+inp('售價（市價）','number','products','price',p.price,dm)+inp('團購價','number','products','groupPrice',p.groupPrice,dm)+
       inp('可運用素材路徑','text','products','assetLink',p.assetLink,dm,'wide')+inp('產品介紹簡報（網址或檔名）','text','products','deckLink',p.deckLink,dm,'wide')+
       '<label class="f wide">其他備註（募資、上架、更新期限等）<textarea data-col="products" data-field="devNote"'+dm+'>'+esc(p.devNote||'')+'</textarea></label>'+
@@ -805,6 +823,7 @@ document.addEventListener('click',function(ev){
   else if(a==='planCat'){S.planCat=t.dataset.v;renderModal();}
   else if(a==='planContact'){S.planContact=t.dataset.v;renderModal();}
   else if(a==='addSale')addSale();
+  else if(a==='delProduct')twoClick('d'+id,function(){deleteProduct(id);});
   else if(a==='delSale')twoClick('s'+id,function(){del('sales/'+id);});
   else if(a==='tlPrev'||a==='tlNext'){S.tlStart=addDays(S.tlStart||monday(addDays(today(),-42)),a==='tlNext'?28:-28);render();}
   else if(a==='tlToday'){S.tlStart=null;render();}
