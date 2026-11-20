@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 只有下面名單裡的 Google 信箱可以讀寫（信箱請全部用小寫）。
+    // 要新增或移除人：改這個名單，再按「發布」。
+    function allowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'jolie@nakay.com.tw',
+          'someone1@gmail.com',
+          'someone2@gmail.com'
+        ];
+    }
+
+    match /{document=**} {
+      allow read, write: if allowed();
+    }
+  }
+}
