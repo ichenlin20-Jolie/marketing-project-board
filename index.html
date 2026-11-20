@@ -527,15 +527,32 @@ function dataTools(){
   var ok=can('settings'),dis=ok?'':' disabled';
   var ta='width:100%;height:120px;font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 8px';
   var h='<div class="rep-sec"><h2>資料匯出／匯入</h2><p class="hint" style="margin:0 0 8px">用來備份，或把資料搬到另一個版本。匯入會依代號覆蓋同代號的資料，其他資料不會被刪除。匯入需要「行銷」角色。</p>'+
-    '<div style="margin-bottom:8px"><button class="btn" data-act="exportData">產生匯出資料</button></div>';
+    '<div style="margin-bottom:8px"><button class="btn" data-act="exportData">產生匯出資料</button> <span class="stamp">'+(S.exportText==null?esc(S.copyMsg||''):'')+'</span></div>';
   if(S.exportText!=null)h+='<textarea id="exp-text" readonly style="'+ta+'">'+esc(S.exportText)+'</textarea><div style="margin:6px 0 12px"><button class="btn small" data-act="copyExport">複製</button> <span class="stamp">'+esc(S.copyMsg||'')+'</span></div>';
   h+='<textarea id="imp-text" placeholder="貼上匯出的 JSON" style="'+ta+'"'+dis+'>'+esc(S.impText||'')+'</textarea><div style="margin-top:6px"><button class="btn primary" data-act="importData"'+dis+'>匯入</button> <span class="stamp">'+esc(S.impMsg||'')+'</span></div></div>';
   return h;
 }
+function blobToData(id){
+  return fetch('/_blob/'+id).then(function(r){if(!r.ok)throw 0;return r.blob();}).then(function(b){
+    return new Promise(function(res,rej){
+      var u=URL.createObjectURL(b),im=new Image();
+      im.onload=function(){
+        var sc=Math.min(1,640/Math.max(im.width,im.height)),c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round(im.width*sc));c.height=Math.max(1,Math.round(im.height*sc));
+        var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+        URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',0.82));
+      };
+      im.onerror=function(){URL.revokeObjectURL(u);rej(0);};im.src=u;
+    });
+  });
+}
 function exportAll(){
   var o={products:{},plans:{},kols:{},sales:{},settings:{lists:copy(S.settings)}};
   ['products','plans','kols','sales'].forEach(function(c){Object.keys(S[c]).forEach(function(id){o[c][id]=copy(S[c][id]);});});
-  return JSON.stringify(o);
+  var jobs=Object.keys(o.products).filter(function(id){var v=o.products[id].imageId;return v&&/^[A-Za-z0-9_-]+$/.test(v);});
+  return Promise.all(jobs.map(function(id){
+    return blobToData(o.products[id].imageId).then(function(d){o.products[id].imageId=d;},function(){o.products[id].imageId='';});
+  })).then(function(){return JSON.stringify(o);});
 }
 function importAll(){
   var d;try{d=JSON.parse(S.impText||'');}catch(e){S.impMsg='格式不正確，請貼上完整的匯出內容。';render();return;}
@@ -583,9 +600,22 @@ function modalProduct(p){
   h+=planSection(p)+kolSection(p)+salesSection(p)+'</div></div>';
   return h;
 }
+function planFilters(all){
+  if(!all.length)return '';
+  var cats=[],cons=[];
+  all.forEach(function(x){if(x.cat&&cats.indexOf(x.cat)<0)cats.push(x.cat);if(x.contact&&cons.indexOf(x.contact)<0)cons.push(x.contact);});
+  cons.sort(function(a,b){return a.localeCompare(b,'zh',{numeric:true});});
+  function row(label,act,cur,arr,field){
+    return '<div class="filters" style="align-items:center"><span class="stamp" style="min-width:34px">'+label+'</span><button data-act="'+act+'" data-v="" aria-pressed="'+(!cur)+'">全部</button>'+
+      arr.map(function(v){var n=all.filter(function(x){return x[field]===v;}).length;return '<button data-act="'+act+'" data-v="'+esc(v)+'" aria-pressed="'+(cur===v)+'">'+esc(v)+' ('+n+')</button>';}).join('')+'</div>';
+  }
+  return row('分類','planCat',S.planCat,cats,'cat')+row('窗口','planContact',S.planContact,cons,'contact');
+}
 function planSection(p){
-  var ps=plansOf(p.id),dp=can('plan')?'':' disabled',ds=can('planSales')?'':' disabled';
+  var all=plansOf(p.id),dp=can('plan')?'':' disabled',ds=can('planSales')?'':' disabled';
+  var ps=all.filter(function(x){return (!S.planCat||x.cat===S.planCat)&&(!S.planContact||x.contact===S.planContact);});
   var h='<section class="sec mkt"><div class="sec-h"><h3>通路規劃</h3><small>行銷建立與備註，業務填「業務更新」</small><span class="lock">'+(can('plan')?'你可以編輯整列':can('planSales')?'你可以填業務更新':'唯讀')+'</span></div>';
+  h+=planFilters(all);
   if(ps.length){
     h+='<div class="tbl-wrap"><table><thead><tr><th>分類</th><th>通路／項目</th><th>窗口</th><th>階段／內容</th><th>檔期</th><th>行銷規劃／備註</th><th>業務更新</th><th></th></tr></thead><tbody>'+
       ps.map(function(x){
@@ -595,7 +625,7 @@ function planSection(p){
           '<td><textarea data-col="plans" data-id="'+esc(x.id)+'" data-field="salesUpdate" aria-label="'+esc(x.name)+' 業務更新"'+ds+'>'+esc(x.salesUpdate||'')+'</textarea></td>'+
           '<td><div class="rowact"><button class="btn small" data-act="edit" data-kind="plan" data-id="'+esc(x.id)+'"'+dp+'>編輯</button><button class="btn small danger" data-act="delPlan" data-id="'+esc(x.id)+'"'+dp+'>'+delLabel('p'+x.id)+'</button></div></td></tr>';
       }).join('')+'</tbody></table></div>';
-  }else h+='<p class="hint" style="margin:0">還沒有通路規劃。</p>';
+  }else h+='<p class="hint" style="margin:0">'+(all.length?'沒有符合篩選條件的通路。':'還沒有通路規劃。')+'</p>';
   if(S.edit.kind==='plan')h+=planForm(S.edit.id?S.plans[S.edit.id]:null,dp);
   else h+='<div style="margin-top:10px"><button class="btn primary" data-act="new" data-kind="plan"'+dp+'>＋ 新增通路</button></div>';
   return h+'</section>';
@@ -621,8 +651,8 @@ function kolSection(p){
   var cnt={};all.forEach(function(k){cnt[k.status]=(cnt[k.status]||0)+1;});
   var tq=all.reduce(function(a,k){return a+(Number(k.qty)||0);},0),tn=all.reduce(function(a,k){return a+kolNet(k);},0);
   var h='<section class="sec sales"><div class="sec-h"><h3>網紅／團購</h3><small>共 '+all.length+' 筆，銷量 '+money(tq)+'，淨營業額 '+money(tn)+'</small><span class="lock">'+(can('kol')?'你可以編輯':'唯讀')+'</span></div>'+
-    '<div class="filters"><button data-act="kolFilter" data-v="" aria-pressed="'+(!S.kolFilter)+'">全部 '+all.length+'</button>'+
-    KOL_STATUS.map(function(s){return '<button data-act="kolFilter" data-v="'+s+'" aria-pressed="'+(S.kolFilter===s)+'">'+s+' '+(cnt[s]||0)+'</button>';}).join('')+'</div>';
+    '<div class="filters"><button data-act="kolFilter" data-v="" aria-pressed="'+(!S.kolFilter)+'">全部 ('+all.length+')</button>'+
+    KOL_STATUS.map(function(s){return '<button data-act="kolFilter" data-v="'+s+'" aria-pressed="'+(S.kolFilter===s)+'">'+s+' ('+(cnt[s]||0)+')</button>';}).join('')+'</div>';
   if(ks.length){
     h+='<div class="tbl-wrap"><table><thead><tr><th>窗口</th><th>名稱</th><th>類型／平台</th><th>狀態</th><th>寄樣</th><th>開團期間</th><th class="num">銷量</th><th class="num">售價／團購價</th><th class="num">淨營業額</th><th>備註／客訴反饋</th><th>行銷備註</th><th></th></tr></thead><tbody>'+
       ks.map(function(k){
@@ -739,13 +769,13 @@ function schedule(force){
 function renderModalForce(){if(modalBusy())return;renderModal();}
 
 /* ---------- events ---------- */
-function closeModal(){S.imgMsg='';S.sel=null;S.modalMode=null;S.edit={kind:null,id:null};S.formErr='';S.kolFilter='';renderModal();}
+function closeModal(){S.imgMsg='';S.sel=null;S.modalMode=null;S.edit={kind:null,id:null};S.formErr='';S.kolFilter='';S.planCat='';S.planContact='';renderModal();}
 document.addEventListener('click',function(ev){
   var t=ev.target.closest('[data-act]');
   if(!t){if(ev.target.id==='modal')closeModal();return;}
   var a=t.dataset.act,id=t.dataset.id;
   if(a==='tab'){S.view=t.dataset.view;render();}
-  else if(a==='open'){S.sel=id;S.modalMode='product';S.edit={kind:null,id:null};S.formErr='';renderModal();}
+  else if(a==='open'){S.planCat='';S.planContact='';S.sel=id;S.modalMode='product';S.edit={kind:null,id:null};S.formErr='';renderModal();}
   else if(a==='close')closeModal();
   else if(a==='clearImg'){setField('products',S.sel,'imageId','');S.imgMsg='';}
   else if(a==='newProduct'){S.modalMode='new';S.formErr='';renderModal();}
@@ -758,6 +788,8 @@ document.addEventListener('click',function(ev){
   else if(a==='delPlan')twoClick('p'+id,function(){del('plans/'+id);});
   else if(a==='delKol')twoClick('k'+id,function(){del('kols/'+id);});
   else if(a==='kolFilter'){S.kolFilter=t.dataset.v;renderModal();}
+  else if(a==='planCat'){S.planCat=t.dataset.v;renderModal();}
+  else if(a==='planContact'){S.planContact=t.dataset.v;renderModal();}
   else if(a==='addSale')addSale();
   else if(a==='delSale')twoClick('s'+id,function(){del('sales/'+id);});
   else if(a==='tlPrev'||a==='tlNext'){S.tlStart=addDays(S.tlStart||monday(addDays(today(),-42)),a==='tlNext'?28:-28);render();}
@@ -778,7 +810,7 @@ document.addEventListener('click',function(ev){
     });
   }
   else if(a==='logout'){auth.signOut().then(function(){location.reload();});}
-  else if(a==='exportData'){S.exportText=exportAll();S.copyMsg='';render();}
+  else if(a==='exportData'){S.copyMsg='產生中（含圖片，請稍候）…';S.exportText=null;render();exportAll().then(function(t){S.exportText=t;S.copyMsg='';render();});}
   else if(a==='copyExport'){
     var ta=$('#exp-text');if(ta){ta.select();}
     var okc=function(){S.copyMsg='已複製';render();},bad=function(){try{document.execCommand('copy');S.copyMsg='已複製';}catch(x){S.copyMsg='請手動全選複製';}render();};
