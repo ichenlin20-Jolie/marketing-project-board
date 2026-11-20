@@ -323,7 +323,21 @@ function kolsOf(pid){return vals(S.kols).filter(function(x){return x.pid===pid;}
 function salesOf(pid){return vals(S.sales).filter(function(x){return x.pid===pid;});}
 function timing(s,e){var t=today();if(!s)return 'none';if(s>t)return 'soon';if(e&&e<t)return 'done';return 'live';}
 function overlaps(s,e,ps,pe){return s&&s<=pe&&(!e||e>=ps);}
-function kolNet(k){var q=Number(k.qty)||0,p=num(k.groupPrice);if(p==null)p=Number(k.price)||0;return q*p;}
+function bulkD(p){if(p.bulkDate!=null)return p.bulkDate;return p.bulkActual||p.bulkPlan||'';}
+function unitPrice(k){var p=S.products[k.pid]||{};var g=num(p.groupPrice);if(g==null)g=num(k.groupPrice);if(g==null)g=num(p.price);if(g==null)g=num(k.price);return g||0;}
+function kolNet(k){return (Number(k.qty)||0)*unitPrice(k);}
+function maybeMigrate(){
+  if(S.migDone||!S.loaded.products||!S.loaded.kols||!can('mktInfo'))return;
+  if(S.needServer&&!S.serverOk)return;
+  S.migDone=true;
+  productList().forEach(function(p){
+    if(p.price!=null||p.groupPrice!=null)return;
+    var ks=kolsOf(p.id),pr=ks.filter(function(k){return k.price!=null;})[0],gp=ks.filter(function(k){return k.groupPrice!=null;})[0];
+    if(!pr&&!gp)return;
+    var o=copy(p);if(pr)o.price=pr.price;if(gp)o.groupPrice=gp.groupPrice;
+    put('products/'+p.id,meta(o));
+  });
+}
 function sampleDone(p){return p.sampleStatus==='已寄出'||p.sampleStatus==='已到貨';}
 function bulkDone(p){return p.bulkStatus==='已到貨'||!!p.bulkActual;}
 function overdue(p){var t=today(),n=0;if(!sampleDone(p)&&p.sampleDate&&p.sampleDate<t)n++;if(!bulkDone(p)&&p.bulkPlan&&p.bulkPlan<t)n++;return n;}
@@ -380,12 +394,11 @@ function tiles(){
   var all=productList();
   var live=vals(S.plans).filter(function(x){return timing(x.start,x.end)==='live';}).length;
   var open=vals(S.kols).filter(function(k){return k.status==='開團中';}).length;
-  var od=all.reduce(function(a,p){return a+overdue(p);},0);
   return '<div class="tiles">'+
     '<div class="tile"><b>'+all.length+'</b><span>追蹤中的型號</span></div>'+
     '<div class="tile"><b>'+live+'</b><span>進行中的通路檔期</span></div>'+
     '<div class="tile"><b>'+open+'</b><span>開團中的網紅／團購</span></div>'+
-    '<div class="tile'+(od?' alert':'')+'"><b>'+od+'</b><span>逾期未完成的樣品／大貨</span></div></div>';
+    '</div>';
 }
 var GROUPS=[['實體',['實體']],['網紅',['網紅']],['平台',['平台','電商']],['團購',['團購','直播']]];
 function imgSrc(p){return p&&typeof p.imageId==='string'&&p.imageId.indexOf('data:image/')===0?p.imageId:'';}
@@ -437,7 +450,7 @@ function viewTimeline(){
   head+='</div></div>';
   var rows='';
   prods.forEach(function(p){
-    rows+=row('<span>'+esc(p.model)+' '+esc(p.name||'')+'</span>',ms(p.sampleDate,'s','◆','樣品 '+(p.sampleDate||''))+ms(p.bulkActual||p.bulkPlan,'b','▲','大貨 '+(p.bulkActual||p.bulkPlan||'')),'tl-prod');
+    rows+=row('<span>'+esc(p.model)+' '+esc(p.name||'')+'</span>',ms(p.sampleDate,'s','◆','樣品到貨 '+(p.sampleDate||''))+ms(bulkD(p),'b','▲','大貨到貨 '+bulkD(p)),'tl-prod');
     var ps=plansOf(p.id).filter(function(x){return x.start;});
     if(ps.length){rows+=row('<span>通路規劃</span>','','tl-group');
       ps.forEach(function(x){rows+=row(catTag(x.cat)+'<span>'+esc(x.name)+'</span>',bar(x.start,x.end,CAT_COLOR[x.cat]||'#7d8a97',x.name+(x.stage?' '+x.stage:''),x.name+' '+(x.stage||'')+' '+x.start+' ~ '+(x.end||'未定')+(x.confirm?'（'+x.confirm+'）':''),x.confirm==='預估'));});}
@@ -487,8 +500,8 @@ function viewReport(){
     '<div class="tile"><b>'+money(kq)+'</b><span>網紅／團購銷量　淨營業額 '+money(kn)+'</span></div></div>';
   var ms=[];
   productList().forEach(function(p){
-    if(p.sampleDate&&p.sampleDate>=P.s&&p.sampleDate<=P.e)ms.push([p.sampleDate,p.model,'樣品',p.sampleStatus||'']);
-    var bd=p.bulkActual||p.bulkPlan;if(bd&&bd>=P.s&&bd<=P.e)ms.push([bd,p.model,'大貨',bulkDone(p)?'已到貨':(bd<today()?'逾期':'預計')]);
+    if(p.sampleDate&&p.sampleDate>=P.s&&p.sampleDate<=P.e)ms.push([p.sampleDate,p.model,'樣品',p.sampleDate<=today()?'已到貨':'預計']);
+    var bd=bulkD(p);if(bd&&bd>=P.s&&bd<=P.e)ms.push([bd,p.model,'大貨',bd<=today()?'已到貨':'預計']);
   });
   ms.sort();
   if(ms.length)h+='<div class="rep-sec"><h2>商品開發：樣品與大貨</h2><div class="tbl-wrap"><table><thead><tr><th>日期</th><th>型號</th><th>項目</th><th>狀態</th></tr></thead><tbody>'+
@@ -590,13 +603,11 @@ function modalProduct(p){
     (S.imgMsg?'<p class="hint">'+esc(S.imgMsg)+'</p>':'')+'</div></div></section>';
   h+='<section class="sec dev"><div class="sec-h"><h3>商品進度</h3><small>樣品、大貨由商品開發填寫；品名、圖檔、素材由行銷填寫（行銷可改全部）</small><span class="lock">'+esc(stamp(p))+'</span></div><div class="grid2">'+
     '<div class="box"><h4>商品開發 '+lockNote('dev','商品開發')+'</h4><div class="fields">'+
-      sel('樣品狀態','products','sampleStatus',SAMPLE_ST,p.sampleStatus,dd)+inp('樣品日期','date','products','sampleDate',p.sampleDate,dd)+
-      sel('大貨狀態','products','bulkStatus',BULK_ST,p.bulkStatus,dd)+inp('大貨預計到倉日','date','products','bulkPlan',p.bulkPlan,dd)+
-      inp('大貨實際到倉日','date','products','bulkActual',p.bulkActual,dd)+
-      inp('樣品說明','text','products','sampleNote',p.sampleNote,dd,'wide')+inp('大貨說明','text','products','bulkNote',p.bulkNote,dd,'wide')+'</div></div>'+
+      inp('樣品到貨日期','date','products','sampleDate',p.sampleDate,dd)+inp('大貨到貨日期','date','products','bulkDate',bulkD(p),dd)+
+      inp('樣品說明','text','products','sampleNote',p.sampleNote,dd,'wide')+'</div></div>'+
     '<div class="box"><h4>行銷 '+lockNote('mktInfo','行銷')+'</h4><div class="fields">'+
       inp('品名','text','products','name',p.name,dm)+inp('行銷負責人','text','products','mktOwner',p.mktOwner,dm)+
-      inp('規劃期間','text','products','period',p.period,dm)+inp('圖檔狀態','text','products','artStatus',p.artStatus,dm)+
+      inp('規劃期間','text','products','period',p.period,dm)+inp('網圖日期','date','products','artDate',p.artDate,dm)+inp('售價（市價）','number','products','price',p.price,dm)+inp('團購價','number','products','groupPrice',p.groupPrice,dm)+
       inp('可運用素材路徑','text','products','assetLink',p.assetLink,dm,'wide')+inp('產品介紹簡報（網址或檔名）','text','products','deckLink',p.deckLink,dm,'wide')+
       '<label class="f wide">其他備註（募資、上架、更新期限等）<textarea data-col="products" data-field="devNote"'+dm+'>'+esc(p.devNote||'')+'</textarea></label>'+
       '</div>'+((p.assetLink||p.deckLink)?'<p class="links" style="margin:8px 0 0">'+(p.assetLink?'素材：'+linkOrText(p.assetLink,'開啟素材')+'<br>':'')+(p.deckLink?'簡報：'+linkOrText(p.deckLink,'開啟簡報'):'')+'</p>':'')+'</div>'+
@@ -627,10 +638,10 @@ function planSection(p){
         return '<tr'+(t==='done'?' class="dim"':'')+'><td>'+catTag(x.cat)+'</td><td><b>'+esc(x.name)+'</b><br>'+(x.confirm==='預估'?chip('n','預估','','est'):chip('i','確定'))+(t==='live'?' '+chip('ok','進行中'):'')+'</td><td>'+esc(x.contact||'')+'</td><td>'+esc(x.stage||'')+'</td><td style="white-space:nowrap">'+esc(span(x.start,x.end))+'</td>'+
           '<td class="pre">'+esc(x.mktNote||'')+'</td>'+
           '<td><textarea data-col="plans" data-id="'+esc(x.id)+'" data-field="salesUpdate" aria-label="'+esc(x.name)+' 業務更新"'+ds+'>'+esc(x.salesUpdate||'')+'</textarea></td>'+
-          '<td><div class="rowact"><button class="btn small" data-act="edit" data-kind="plan" data-id="'+esc(x.id)+'"'+dp+'>編輯</button><button class="btn small danger" data-act="delPlan" data-id="'+esc(x.id)+'"'+dp+'>'+delLabel('p'+x.id)+'</button></div></td></tr>';
+          '<td><div class="rowact"><button class="btn small" data-act="edit" data-kind="plan" data-id="'+esc(x.id)+'"'+dp+'>'+(S.edit.kind==='plan'&&S.edit.id===x.id?'收合':'編輯')+'</button><button class="btn small danger" data-act="delPlan" data-id="'+esc(x.id)+'"'+dp+'>'+delLabel('p'+x.id)+'</button></div></td></tr>'+(S.edit.kind==='plan'&&S.edit.id===x.id?'<tr><td colspan="8" style="background:var(--bg)">'+planForm(S.plans[x.id],dp)+'</td></tr>':'');
       }).join('')+'</tbody></table></div>';
   }else h+='<p class="hint" style="margin:0">'+(all.length?'沒有符合篩選條件的通路。':'還沒有通路規劃。')+'</p>';
-  if(S.edit.kind==='plan')h+=planForm(S.edit.id?S.plans[S.edit.id]:null,dp);
+  if(S.edit.kind==='plan'&&!S.edit.id)h+=planForm(null,dp);
   else h+='<div style="margin-top:10px"><button class="btn primary" data-act="new" data-kind="plan"'+dp+'>＋ 新增通路</button></div>';
   return h+'</section>';
 }
@@ -658,11 +669,11 @@ function kolSection(p){
     '<div class="filters"><button data-act="kolFilter" data-v="" aria-pressed="'+(!S.kolFilter)+'">全部 ('+all.length+')</button>'+
     KOL_STATUS.map(function(s){return '<button data-act="kolFilter" data-v="'+s+'" aria-pressed="'+(S.kolFilter===s)+'">'+s+' ('+(cnt[s]||0)+')</button>';}).join('')+'</div>';
   if(ks.length){
-    h+='<div class="tbl-wrap"><table><thead><tr><th>窗口</th><th>名稱</th><th>類型／平台</th><th>狀態</th><th>寄樣</th><th>開團期間</th><th class="num">銷量</th><th class="num">售價／團購價</th><th class="num">淨營業額</th><th>備註／客訴反饋</th><th>行銷備註</th><th></th></tr></thead><tbody>'+
+    h+='<div class="tbl-wrap"><table><thead><tr><th>窗口</th><th>名稱</th><th>類型／平台</th><th>狀態</th><th>寄樣</th><th>開團期間</th><th class="num">銷量</th><th class="num">淨營業額</th><th>備註／客訴反饋</th><th>行銷備註</th><th></th></tr></thead><tbody>'+
       ks.map(function(k){
-        return '<tr'+(k.status==='不開團'?' class="dim"':'')+'><td>'+esc(k.rep||'')+(k.client?'<div class="stamp">客戶 '+esc(k.client)+'</div>':'')+'</td><td><b>'+esc(k.name)+'</b> '+link(k.link)+(k.subModel?' '+chip('n',k.subModel):'')+(k.audience?'<div class="stamp">'+esc(k.audience.length>40?k.audience.slice(0,40)+'…':k.audience)+'</div>':'')+'</td><td>'+esc(k.type||'')+'<div class="stamp">'+esc(k.platform||'')+'</div></td>'+
+        return '<tr'+(k.status==='不開團'?' class="dim"':'')+'><td>'+esc(k.rep||'')+(k.client?'<div class="stamp">客戶 '+esc(k.client)+'</div>':'')+'</td><td><b>'+esc(k.name)+'</b> '+link(k.link)+'</td><td>'+esc(k.type||'')+'<div class="stamp">'+esc(k.platform||'')+'</div></td>'+
           '<td>'+chip(KOL_CLS[k.status]||'n',k.status||'—',true)+'</td><td>'+esc(md(k.sampleDate))+'</td><td style="white-space:nowrap">'+esc(k.start?span(k.start,k.end):'')+'</td>'+
-          '<td class="num">'+(k.qty==null?'':money(k.qty))+'</td><td class="num">'+(k.price!=null?money(k.price):'')+(k.groupPrice!=null?' / '+money(k.groupPrice):'')+'</td><td class="num">'+money(kolNet(k))+'</td>'+
+          '<td class="num">'+(k.qty==null?'':money(k.qty))+'</td><td class="num">'+money(kolNet(k))+'</td>'+
           '<td class="pre">'+esc(k.feedback||'')+'</td><td class="pre">'+esc(k.mktNote||'')+(k.mktOwner?'<div class="stamp">行銷窗口 '+esc(k.mktOwner)+'</div>':'')+'</td>'+
           '<td><div class="rowact"><button class="btn small" data-act="edit" data-kind="kol" data-id="'+esc(k.id)+'"'+dk+'>編輯</button><button class="btn small danger" data-act="delKol" data-id="'+esc(k.id)+'"'+dk+'>'+delLabel('k'+k.id)+'</button></div></td></tr>';
       }).join('')+'</tbody></table></div>';
@@ -678,7 +689,6 @@ function kolForm(k,dk){
     '<label class="f">業務窗口<select id="kf-rep"'+dk+'>'+opts(list('reps'),k.rep||list('reps')[0])+'</select></label>'+
     '<label class="f">客戶名稱<input id="kf-client" value="'+esc(k.client||'')+'"'+dk+'></label>'+
     '<label class="f">KOL／團媽名稱<input id="kf-name" value="'+esc(k.name||'')+'"'+dk+'></label>'+
-    '<label class="f">產品型號<input id="kf-sub" value="'+esc(k.subModel||'')+'"'+dk+'></label>'+
     '<label class="f">類型<select id="kf-type"'+dk+'>'+opts(list('kolTypes'),k.type||list('kolTypes')[0])+'</select></label>'+
     '<label class="f">主要平台<input id="kf-platform" list="kpl" value="'+esc(k.platform||'')+'"'+dk+'><datalist id="kpl">'+pl+'</datalist></label>'+
     '<label class="f">狀態<select id="kf-status"'+dk+'>'+opts(KOL_STATUS,k.status||'洽談中')+'</select></label>'+
@@ -686,14 +696,11 @@ function kolForm(k,dk){
     '<label class="f">開團時間<input id="kf-start" type="date" value="'+esc(k.start||'')+'"'+dk+'></label>'+
     '<label class="f">結束時間<input id="kf-end" type="date" value="'+esc(k.end||'')+'"'+dk+'></label>'+
     '<label class="f">銷售量<input id="kf-qty" type="number" min="0" value="'+esc(k.qty==null?'':k.qty)+'"'+dk+'></label>'+
-    '<label class="f">售價（市價）<input id="kf-price" type="number" min="0" value="'+esc(k.price==null?'':k.price)+'"'+dk+'></label>'+
-    '<label class="f">團購價<input id="kf-gprice" type="number" min="0" value="'+esc(k.groupPrice==null?'':k.groupPrice)+'"'+dk+'></label>'+
-    '<label class="f wide">受眾屬性／標籤<input id="kf-aud" value="'+esc(k.audience||'')+'"'+dk+'></label>'+
     '<label class="f wide">貼文／追蹤連結<input id="kf-link" type="url" placeholder="https://" value="'+esc(k.link||'')+'"'+dk+'></label>'+
     '<label class="f wide">備註／客訴反饋<textarea id="kf-fb"'+dk+'>'+esc(k.feedback||'')+'</textarea></label>'+
     '<label class="f wide">行銷備註／建議（行銷填寫）<textarea id="kf-mkt"'+dm+'>'+esc(k.mktNote||'')+'</textarea></label>'+
     '<label class="f">行銷窗口<input id="kf-mo" value="'+esc(k.mktOwner||'')+'"'+dm+'></label></div>'+
-    '<p class="hint">淨營業額會自動用「銷售量 × 團購價」計算。</p>'+
+    '<p class="hint">淨營業額 = 銷售量 × 團購價（團購價請在上方「商品進度」填寫）。</p>'+
     (S.formErr&&S.formFor==='kol'?'<p class="err">'+esc(S.formErr)+'</p>':'')+
     '<div style="margin-top:8px;display:flex;gap:8px"><button class="btn primary" data-act="saveKol"'+dk+'>儲存</button><button class="btn" data-act="cancel">取消</button></div></div>';
 }
@@ -750,7 +757,7 @@ function renderStatic(){
 function banner(){
   var b='';
   if(S.err==='nodb')b+='<div class="note">尚未設定資料庫。請依 README 填寫 firebase-config.js。</div>';
-  if(S.err==='slow')b+='<div class="note">資料連線較慢，畫面可能不是最新內容。</div>';
+  if(S.err==='slow')b+='<div class="note">連不到 Firebase 資料庫，目前看到的不是雲端資料，新增或匯入的內容也不會被儲存。請檢查：Firestore 的資料庫 ID 是否為 (default)、網路是否擋住 Google 連線。</div>';
   if(S.err==='readonly'||!S.canWrite)b+='<div class="note">你目前是唯讀身分，無法儲存。請頁面擁有者把你設為「Contributor」。'+(S.errDetail?'（'+esc(S.errDetail)+'）':'')+'</div>';
   if(S.err==='writefail')b+='<div class="note">儲存失敗，請稍後再試。'+(S.errDetail?'（'+esc(S.errDetail)+'）':'')+'</div>';
   if(S.err==='quota')b+='<div class="note">資料筆數已達上限，請刪除不需要的紀錄後再新增。</div>';
@@ -785,7 +792,7 @@ document.addEventListener('click',function(ev){
   else if(a==='newProduct'){S.modalMode='new';S.formErr='';renderModal();}
   else if(a==='saveNewProduct')saveNewProduct();
   else if(a==='new'){S.edit={kind:t.dataset.kind,id:null};S.formErr='';renderModal();}
-  else if(a==='edit'){S.edit={kind:t.dataset.kind,id:id};S.formErr='';renderModal();}
+  else if(a==='edit'){if(S.edit.kind===t.dataset.kind&&S.edit.id===id)S.edit={kind:null,id:null};else S.edit={kind:t.dataset.kind,id:id};S.formErr='';renderModal();}
   else if(a==='cancel'){S.edit={kind:null,id:null};S.formErr='';renderModal();}
   else if(a==='savePlan')savePlan();
   else if(a==='saveKol')saveKol();
@@ -829,6 +836,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#modal'
 $('#search').addEventListener('input',function(e){S.q=e.target.value;render();});
 $('#role').addEventListener('change',function(e){
   S.role=e.target.value||null;
+  maybeMigrate();
   try{localStorage.setItem('kinyo-role',S.role||'');}catch(x){}
   if(db&&S.uid)db.doc('userprofiles/'+S.uid).set({role:S.role||''}).catch(function(){});
   render();renderModal();
@@ -847,6 +855,7 @@ document.addEventListener('change',function(e){
   var col=t.dataset&&t.dataset.col,field=t.dataset&&t.dataset.field;
   if(!col||!field)return;
   var v=t.type==='checkbox'?t.checked:t.value.trim();
+  if(t.type==='number')v=num(v);
   if(col==='products'&&S.sel)setField('products',S.sel,field,v);
   else if(col==='plans'&&t.dataset.id)setField('plans',t.dataset.id,field,v);
 });
@@ -856,7 +865,7 @@ function saveNewProduct(){
   var id=model.replace(/[^A-Za-z0-9_\-]/g,'')||newId('p');
   if(S.products[id]){S.formErr='這個型號已經存在。';renderModal();return;}
   S.formErr='';
-  put('products/'+id,meta({model:model,name:$('#np-name').value.trim(),period:$('#np-period').value.trim(),sampleStatus:'未排',bulkStatus:'未排'})).then(function(){S.modalMode='product';S.sel=id;renderModal();});
+  put('products/'+id,meta({model:model,name:$('#np-name').value.trim(),period:$('#np-period').value.trim()})).then(function(){S.modalMode='product';S.sel=id;renderModal();});
 }
 function g(i){var el=$('#'+i);return el?el.value.trim():'';}
 function savePlan(){
@@ -878,8 +887,8 @@ function saveKol(){
   var cur=S.edit.id?S.kols[S.edit.id]:null,id=S.edit.id||newId('k');
   var o=cur?copy(cur):{pid:S.sel,mktNote:''};
   o.rep=g('kf-rep');o.name=name;o.type=g('kf-type');o.platform=g('kf-platform');o.status=g('kf-status');o.sampleDate=g('kf-sample');o.start=s;o.end=e;
-  o.qty=num(g('kf-qty'));o.price=num(g('kf-price'));o.groupPrice=num(g('kf-gprice'));o.audience=g('kf-aud');o.link=g('kf-link');o.feedback=$('#kf-fb').value;
-  o.client=g('kf-client');o.subModel=g('kf-sub');
+  o.qty=num(g('kf-qty'));o.link=g('kf-link');o.feedback=$('#kf-fb').value;
+  o.client=g('kf-client');var pm0=S.products[S.sel];o.subModel=pm0?pm0.model:'';
   if(can('kolMkt')){o.mktNote=$('#kf-mkt').value;o.mktOwner=g('kf-mo');}
   S.formErr='';
   put('kols/'+id,meta(o)).then(function(){S.edit={kind:null,id:null};renderModal();});
@@ -899,7 +908,9 @@ function subscribe(){
   ['products','plans','kols','sales'].forEach(function(name){
     db.collection(name).onSnapshot(function(snap){
       S[name]=mapSnap(snap);S.loaded[name]=true;
-      if(name==='products'){clearTimeout(timer);if(S.err==='slow')S.err='';}
+      if(snap.fromCache===false){S.serverOk=true;if(S.err==='slow')S.err='';}
+      if(name==='products'&&(!S.needServer||S.serverOk)){clearTimeout(timer);if(S.err==='slow')S.err='';}
+      maybeMigrate();
       schedule();
     },function(e){S.err=e&&e.code==='permission-denied'?'denied':'slow';schedule();});
   });
@@ -907,7 +918,7 @@ function subscribe(){
     var d=snap.exists?snap.data():{},o={};Object.keys(d||{}).forEach(function(k){o[k]=d[k];});
     S.settings=o;S.loaded.settings=true;schedule();
   },function(){});
-  timer=setTimeout(function(){if(!S.loaded.products){S.err='slow';schedule();}},10000);
+  timer=setTimeout(function(){if(!S.loaded.products||(S.needServer&&!S.serverOk)){S.err='slow';schedule();}},10000);
 }
 function makeAdapter(store){
   function snapDoc(s){return {exists:s.exists,data:function(){return s.data();}};}
@@ -919,7 +930,7 @@ function makeAdapter(store){
       onSnapshot:function(ok,err){return r.onSnapshot(function(s){ok(snapDoc(s));},err);}
     };},
     collection:function(n){var c=store.collection(n);return {
-      onSnapshot:function(ok,err){return c.onSnapshot(function(s){ok({docs:s.docs.map(function(d){return {id:d.id,data:function(){return d.data();}};})});},err);}
+      onSnapshot:function(ok,err){return c.onSnapshot(function(s){ok({fromCache:s.metadata.fromCache,docs:s.docs.map(function(d){return {id:d.id,data:function(){return d.data();}};})});},err);}
     };}
   };
 }
@@ -958,7 +969,7 @@ function init(){
   try{firebase.initializeApp(cfg);}catch(e){}
   auth=firebase.auth();fs=firebase.firestore();
   try{fs.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
-  assetsNS={upload:uploadImage};
+  assetsNS={upload:uploadImage};S.needServer=true;
   S.err='';render();
   auth.onAuthStateChanged(onUser);
 }
