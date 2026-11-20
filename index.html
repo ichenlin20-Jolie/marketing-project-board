@@ -214,6 +214,9 @@ tr.dim td{opacity:.55}
 @media (prefers-reduced-motion:no-preference){#home .logo{animation:hin .8s ease-out both}}
 @keyframes hin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 </style>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com">
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com">
 <script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -344,12 +347,13 @@ function planChip(x){
 
 /* ---------- writes ---------- */
 function failWrite(e){
+  S.errDetail=e?((e.code||'')+' '+(e.message||'')).trim().slice(0,200):'';
   if(e&&(e.code==='invalid_argument'||e.code==='permission-denied')){S.canWrite=false;S.err='readonly';}
   else if(e&&(e.code==='quota_exceeded'||e.code==='resource-exhausted'))S.err='quota';
   else S.err='writefail';
   render();
 }
-function put(path,data){if(!db)return Promise.resolve();return db.doc(path).set(data).catch(failWrite);}
+function put(path,data){if(!db)return Promise.resolve(false);return db.doc(path).set(data).then(function(){return true;},function(e){failWrite(e);return false;});}
 function del(path){if(!db)return;db.doc(path).delete().catch(failWrite);}
 function setField(col,id,field,val){
   var cur=S[col][id];if(!cur)return;
@@ -561,11 +565,11 @@ function importAll(){
   ['products','plans','kols','sales'].forEach(function(c){var m=d[c]||{};Object.keys(m).forEach(function(id){if(/^[^\/]+$/.test(id))jobs.push([c+'/'+id,m[id]]);});});
   if(d.settings&&d.settings.lists)jobs.push(['settings/lists',d.settings.lists]);
   S.impMsg='匯入中… 0 / '+jobs.length;render();
-  var done=0;
+  var done=0,fail=0;
   (function next(){
     var chunk=jobs.splice(0,40);
-    if(!chunk.length){S.impMsg='完成：已匯入 '+done+' 筆。';S.impText='';render();return;}
-    Promise.all(chunk.map(function(j){return put(j[0],j[1]).then(function(){done++;});})).then(function(){S.impMsg='匯入中… '+done;render();next();});
+    if(!chunk.length){S.impMsg=fail?('未完成：成功 '+done+' 筆，失敗 '+fail+' 筆。'+(S.errDetail||'')):('完成：已匯入 '+done+' 筆。');if(!fail)S.impText='';render();return;}
+    Promise.all(chunk.map(function(j){return put(j[0],j[1]).then(function(ok){if(ok)done++;else fail++;});})).then(function(){S.impMsg='匯入中… '+done;render();next();});
   })();
 }
 
@@ -747,8 +751,8 @@ function banner(){
   var b='';
   if(S.err==='nodb')b+='<div class="note">尚未設定資料庫。請依 README 填寫 firebase-config.js。</div>';
   if(S.err==='slow')b+='<div class="note">資料連線較慢，畫面可能不是最新內容。</div>';
-  if(S.err==='readonly'||!S.canWrite)b+='<div class="note">你目前是唯讀身分，無法儲存。請頁面擁有者把你設為「Contributor」。</div>';
-  if(S.err==='writefail')b+='<div class="note">儲存失敗，請稍後再試。</div>';
+  if(S.err==='readonly'||!S.canWrite)b+='<div class="note">你目前是唯讀身分，無法儲存。請頁面擁有者把你設為「Contributor」。'+(S.errDetail?'（'+esc(S.errDetail)+'）':'')+'</div>';
+  if(S.err==='writefail')b+='<div class="note">儲存失敗，請稍後再試。'+(S.errDetail?'（'+esc(S.errDetail)+'）':'')+'</div>';
   if(S.err==='quota')b+='<div class="note">資料筆數已達上限，請刪除不需要的紀錄後再新增。</div>';
   if(!S.role&&S.err!=='nodb'&&S.err!=='login'&&S.err!=='denied')b+='<div class="note">請先在右上角選擇你的角色（行銷、業務、商品開發或主管），才能編輯自己負責的欄位。</div>';
   $('#banner').innerHTML=b;
@@ -953,6 +957,7 @@ function init(){
   if(!window.firebase||!cfg||!cfg.projectId||/貼上/.test(cfg.apiKey||'')){S.err='nodb';render();return;}
   try{firebase.initializeApp(cfg);}catch(e){}
   auth=firebase.auth();fs=firebase.firestore();
+  try{fs.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
   assetsNS={upload:uploadImage};
   S.err='';render();
   auth.onAuthStateChanged(onUser);
