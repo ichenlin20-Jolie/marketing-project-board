@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KINYO 新品通路看板 (Copy)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: top bar with tabs and role switcher; board of one card per model; detail panel split into three role-owned sections. */
+:root{
+  --bg:#f2f5f7; --surface:#ffffff; --ink:#14202b; --muted:#5b6a77; --line:#dce3e9;
+  --accent:#0b6b73; --accent-ink:#ffffff; --accent-soft:#dcf0f1;
+  --n-bg:#e8edf1; --n-ink:#4b5966;
+  --w-bg:#fdefd0; --w-ink:#8a4f00;
+  --i-bg:#e0ebfa; --i-ink:#1b4d8f;
+  --ok-bg:#d9f1e2; --ok-ink:#15693d;
+  --bad-bg:#fde3e0; --bad-ink:#a8231b;
+  --x-bg:#dcdde2; --x-ink:#40434d;
+  --r-dev:#5a4ab8; --r-sales:#1a7f4b; --r-mkt:#b05510;
+  --bar-ch:#4a8fd8; --bar-kol:#e8833a; --bar-list:#3fa56b;
+  --shadow:0 1px 2px rgba(20,32,43,.08),0 4px 14px rgba(20,32,43,.06);
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#10171d; --surface:#18212a; --ink:#e6edf2; --muted:#93a2af; --line:#2a3743;
+    --accent:#4fc1c9; --accent-ink:#0b1a1c; --accent-soft:#17383b;
+    --n-bg:#26323c; --n-ink:#aebbc6;
+    --w-bg:#4a3510; --w-ink:#f3c978;
+    --i-bg:#1b3556; --i-ink:#9cc4f2;
+    --ok-bg:#16402b; --ok-ink:#86d8a8;
+    --bad-bg:#4d1f1b; --bad-ink:#f4a59d;
+    --x-bg:#2e3038; --x-ink:#b7bac6;
+    --r-dev:#a99cf2; --r-sales:#6fd39a; --r-mkt:#f0a068;
+    --bar-ch:#5ea0e6; --bar-kol:#f09a5a; --bar-list:#56bd83;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#10171d; --surface:#18212a; --ink:#e6edf2; --muted:#93a2af; --line:#2a3743;
+  --accent:#4fc1c9; --accent-ink:#0b1a1c; --accent-soft:#17383b;
+  --n-bg:#26323c; --n-ink:#aebbc6;
+  --w-bg:#4a3510; --w-ink:#f3c978;
+  --i-bg:#1b3556; --i-ink:#9cc4f2;
+  --ok-bg:#16402b; --ok-ink:#86d8a8;
+  --bad-bg:#4d1f1b; --bad-ink:#f4a59d;
+  --x-bg:#2e3038; --x-ink:#b7bac6;
+  --r-dev:#a99cf2; --r-sales:#6fd39a; --r-mkt:#f0a068;
+  --bar-ch:#5ea0e6; --bar-kol:#f09a5a; --bar-list:#56bd83;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:17px;letter-spacing:.02em}
+.brand span{font-weight:500;color:var(--muted);margin-left:8px;font-size:14px}
+#tabs{display:flex;gap:4px;flex-wrap:wrap}
+#tabs button{border:0;background:transparent;padding:6px 12px;border-radius:8px;color:var(--muted);font-weight:500}
+#tabs button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.grow{flex:1}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.who select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 8px}
+#search{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;width:170px}
+#banner{padding:0 16px}
+.note{margin:12px 0 0;padding:9px 12px;border-radius:8px;background:var(--w-bg);color:var(--w-ink);font-size:13px}
+main{padding:16px;max-width:1280px;margin:0 auto}
+h2{font-size:16px;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.tile b{display:block;font-size:24px;font-variant-numeric:tabular-nums;line-height:1.2}
+.tile span{font-size:12px;color:var(--muted)}
+.tile.alert b{color:var(--bad-ink)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.btn{border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:8px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad-ink)}
+.btn.small{padding:3px 8px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow);text-align:left;width:100%}
+.card:hover{border-color:var(--accent)}
+.card-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.code{font-weight:700;font-size:18px;letter-spacing:.02em}
+.pname{color:var(--muted);font-size:13px}
+.sub{font-size:12px;color:var(--muted);margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:var(--n-bg);color:var(--n-ink);white-space:nowrap}
+.chip.n{background:var(--n-bg);color:var(--n-ink)}
+.chip.w{background:var(--w-bg);color:var(--w-ink)}
+.chip.i{background:var(--i-bg);color:var(--i-ink)}
+.chip.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.chip.bad{background:var(--bad-bg);color:var(--bad-ink)}
+.chip.x{background:var(--x-bg);color:var(--x-ink)}
+.chip.dot::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.foot{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
+.foot b{color:var(--ink);font-variant-numeric:tabular-nums}
+.empty{padding:36px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px}
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(10,18,24,.5);display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:24px 12px}
+.overlay[hidden]{display:none}
+.panel{background:var(--bg);width:100%;max-width:900px;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);overflow:hidden}
+.panel.narrow{max-width:460px}
+.panel-h{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--line)}
+.panel-b{padding:14px 18px 20px;display:flex;flex-direction:column;gap:14px}
+.sec{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--c,var(--accent));border-radius:10px;padding:12px 14px}
+.sec.dev{--c:var(--r-dev)} .sec.sales{--c:var(--r-sales)} .sec.mkt{--c:var(--r-mkt)}
+.sec-h{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;margin-bottom:10px}
+.sec-h h3{margin:0;font-size:15px}
+.sec-h small{color:var(--muted)}
+.sec-h .lock{margin-left:auto;font-size:12px;color:var(--muted)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.f input,.f select,.f textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;color:var(--ink);font-size:14px;width:100%}
+.f input:disabled,.f select:disabled,.f textarea:disabled{opacity:.6;cursor:not-allowed}
+.f.wide{grid-column:1/-1}
+.f.check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+.f.check input{width:auto}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap}
+td input,td select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 6px;font-size:13px;width:100%;min-width:90px}
+td input:disabled,td select:disabled{opacity:.6;border-color:transparent;background:transparent}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rowact{display:flex;gap:6px;white-space:nowrap}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+.err{color:var(--bad-ink);font-size:13px;margin:8px 0 0}
+.stamp{font-size:12px;color:var(--muted)}
+.tl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.tl{position:relative;--lw:210px}
+.tl-row{display:flex;border-bottom:1px solid var(--line);min-height:30px}
+.tl-label{flex:0 0 var(--lw);position:sticky;left:0;z-index:3;background:var(--surface);padding:5px 10px;font-size:13px;border-right:1px solid var(--line);display:flex;align-items:center;gap:6px;overflow:hidden}
+.tl-label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-track{position:relative;flex:0 0 auto;background-image:repeating-linear-gradient(to right,var(--line) 0,var(--line) 1px,transparent 1px,transparent 40px)}
+.tl-head .tl-track{background:none}
+.tl-head .tl-label{font-weight:700}
+.tl-wk{position:absolute;top:0;bottom:0;width:40px;font-size:11px;color:var(--muted);text-align:center;padding-top:6px;font-variant-numeric:tabular-nums}
+.tl-mo{position:absolute;top:2px;font-size:11px;font-weight:700;color:var(--accent);padding-left:4px}
+.tl-head .tl-row,.tl-head{min-height:44px}
+.tl-prod .tl-label{background:var(--accent-soft);font-weight:700}
+.tl-prod .tl-track{background-color:var(--accent-soft)}
+.bar{position:absolute;top:6px;height:18px;border-radius:5px;font-size:11px;line-height:18px;padding:0 6px;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:var(--bar-ch)}
+.bar.kol{background:var(--bar-kol)}
+.bar.list{background:repeating-linear-gradient(135deg,var(--bar-list) 0 6px,color-mix(in srgb,var(--bar-list) 70%,#fff) 6px 12px)}
+.bar.open{border-top-right-radius:0;border-bottom-right-radius:0}
+.ms{position:absolute;top:4px;font-size:15px;line-height:22px;transform:translateX(-7px)}
+.ms.s{color:var(--r-dev)} .ms.b{color:var(--bad-ink)}
+.today{position:absolute;top:0;bottom:0;width:2px;background:var(--bad-ink);opacity:.7;z-index:2;pointer-events:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin:10px 0 0}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.rep-sec{margin-bottom:18px}
+.rep-sec h2{margin:0 0 8px}
+.rep-sec .tbl-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.setlist{display:flex;flex-direction:column;gap:6px;max-width:520px}
+.setrow{display:flex;gap:8px;align-items:center}
+.setrow input{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px}
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:16px}
+.rolecard{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;padding:10px 12px;font-size:13px}
+.rolecard b{display:block;margin-bottom:2px}
+@media (max-width:560px){#search{width:100%}.panel-b{padding:12px}}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+
+.panel{max-width:1180px}
+.f textarea{resize:vertical;min-height:58px;font-family:inherit}
+.pre{white-space:pre-wrap;min-width:180px;max-width:320px;font-size:12.5px;line-height:1.45}
+td textarea{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 6px;font-size:12.5px;width:100%;min-width:200px;min-height:54px;font-family:inherit;resize:vertical}
+td textarea:disabled{border-color:transparent;background:transparent;resize:none;opacity:1}
+.chip.est{background:transparent;outline:1.5px dashed currentColor;outline-offset:-1.5px}
+.catdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:0}
+.cat{display:inline-flex;align-items:center;font-size:12px;font-weight:500;white-space:nowrap}
+.subh{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.subh h4{margin:0;font-size:14px}
+.subh small{color:var(--muted);font-size:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.box{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
+.box h4{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:500}
+.kv{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px}
+.links a{color:var(--accent);font-size:13px;margin-right:12px}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:2px 10px;font-size:12px}
+.filters button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.bar.est{opacity:.55;outline:1.5px dashed rgba(0,0,0,.35);outline-offset:-1.5px}
+.tl-group .tl-label{font-size:12px;color:var(--muted);font-weight:700;background:var(--bg)}
+.tl-group .tl-track{background-color:var(--bg)}
+tr.dim td{opacity:.55}
+.pimg{height:150px;margin:-14px -14px 0;border-radius:12px 12px 0 0;background:#fff;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--line);overflow:hidden}
+.pimg img{max-width:88%;max-height:132px;object-fit:contain}
+.pimg span{font-size:12px;color:#8a96a3}
+.gcounts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.gcount{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 4px;border-radius:8px;background:var(--bg);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.gcount span{display:flex;align-items:center}
+.gcount b{font-size:20px;line-height:1.1;color:var(--muted);font-variant-numeric:tabular-nums}
+.gcount.on b{color:var(--ink)}
+.gcount .catdot{margin-right:0;display:none}
+.imgbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.imgbox .pimg{margin:0;width:160px;height:160px;border:1px solid var(--line);border-radius:10px}
+.imgbox .pimg img{max-height:144px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">KINYO<span>新品通路看板</span></div>
+  <nav id="tabs" aria-label="主要頁面"></nav>
+  <div class="grow"></div>
+  <input id="search" type="search" placeholder="搜尋型號、品名" aria-label="搜尋型號或品名">
+  <div class="who"><label for="role">我的角色</label><select id="role"></select></div>
+</header>
+<div id="banner"></div>
+<main><div id="view"><div class="empty">載入中…</div></div></main>
+<div id="modal" class="overlay" hidden></div>
+
+<script>
+(function(){
+"use strict";
+var ROLES=['行銷','業務','商品開發','主管'];
+var ROLE_NOTE={
+  '行銷':'全部欄位都能修改：通路規劃、網紅／團購、商品進度、銷售回報與設定。',
+  '業務':'填寫各通路的「業務更新」、網紅／團購的開團與銷量、銷售回報。',
+  '商品開發':'提供樣品與大貨的狀態和時間。',
+  '主管':'只能查看，不能修改資料。'
+};
+var PERM={dev:['商品開發','行銷'],mktInfo:['行銷'],addProduct:['商品開發','行銷'],plan:['行銷'],planSales:['業務','行銷'],kol:['行銷','業務'],kolMkt:['行銷'],sales:['業務','行銷'],settings:['行銷']};
+var DEF={cats:['實體','網紅','電商','團購','直播','贈品','平台','其他'],stages:['提報','上架','檔期','活動','種草','開團','直播'],
+  platforms:['IG','FB','YT','Threads','官方平台'],reps:['馨鄞','雅慧'],kolTypes:['網紅','團購','直播','電商']};
+var KOL_STATUS=['洽談中','已寄樣','開團中','已結團','不開團'];
+var KOL_CLS={'洽談中':'n','已寄樣':'i','開團中':'ok','已結團':'x','不開團':'bad'};
+var SAMPLE_ST=['未排','已排定','已寄出','已到貨'];
+var BULK_ST=['未排','生產中','已出貨','已到貨'];
+var CAT_COLOR={'實體':'#3d7fd1','網紅':'#e07a2e','電商':'#2f9e62','團購':'#8b5bd1','直播':'#a24fc2','贈品':'#7d8a97','平台':'#2a9db0','其他':'#7d8a97'};
+var VIEWS=[['board','型號看板'],['timeline','時間軸'],['report','週報／月報'],['settings','設定']];
+
+var S={products:{},plans:{},kols:{},sales:{},settings:{},
+  role:null,uid:null,canWrite:true,view:'board',q:'',sel:null,modalMode:null,
+  edit:{kind:null,id:null},formErr:'',formFor:'',loaded:{},err:'',names:{},asked:{},
+  tlStart:null,tlModel:'',tlKol:true,kolFilter:'',rep:{mode:'week',anchor:null},confirm:{}};
+var db=null,user=null,timer=null,raf=0,assetsNS=null;
+
+/* ---------- helpers ---------- */
+function $(s,r){return (r||document).querySelector(s);}
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function pad(n){return String(n).padStart(2,'0');}
+function iso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function parse(s){var p=s.split('-').map(Number);return new Date(p[0],p[1]-1,p[2]);}
+function today(){return iso(new Date());}
+function addDays(s,n){var d=parse(s);d.setDate(d.getDate()+n);return iso(d);}
+function diffDays(a,b){return Math.round((parse(a)-parse(b))/864e5);}
+function monday(s){var d=parse(s);d.setDate(d.getDate()-((d.getDay()+6)%7));return iso(d);}
+function md(s){return s?(+s.slice(5,7))+'/'+(+s.slice(8,10)):'';}
+function span(s,e){return s?(md(s)+(e&&e!==s?' ～ '+md(e):(e?'':' ～ 未定'))):(e?'～ '+md(e):'未排日期');}
+function money(n){return (Number(n)||0).toLocaleString('zh-TW');}
+function relText(d){return d===0?'今天':d>0?d+' 天後':'逾期 '+(-d)+' 天';}
+function can(k){return !!(S.canWrite&&S.role&&PERM[k].indexOf(S.role)>=0);}
+function list(k){var v=S.settings[k];return (v&&v.length)?v:DEF[k];}
+function vals(o){return Object.keys(o).map(function(k){return o[k];});}
+function productList(){return vals(S.products).sort(function(a,b){return String(a.model).localeCompare(String(b.model),'zh',{numeric:true});});}
+function chip(cls,text,dot,extra){return '<span class="chip '+cls+(dot?' dot':'')+(extra?' '+extra:'')+'">'+esc(text)+'</span>';}
+function catTag(c){return '<span class="cat"><i class="catdot" style="background:'+(CAT_COLOR[c]||'#7d8a97')+'"></i>'+esc(c||'未分類')+'</span>';}
+function link(u,t){return /^https?:\/\//.test(u||'')?'<a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(t||'連結')+'</a>':'';}
+function opts(arr,cur){var a=arr.slice();if(cur&&a.indexOf(cur)<0)a.push(cur);return a.map(function(x){return '<option'+(x===cur?' selected':'')+'>'+esc(x)+'</option>';}).join('');}
+function stamp(o){
+  if(!o||!o.at)return '';
+  var n=o.by&&S.names[o.by]?S.names[o.by]:'';var d=new Date(o.at);
+  return '最後更新 '+(n?esc(n)+' · ':'')+(d.getMonth()+1)+'/'+d.getDate();
+}
+function wantNames(ids){
+  if(!user||!user.profiles)return;
+  var need=ids.filter(function(i){return i&&!S.names[i]&&!S.asked[i];});
+  if(!need.length)return;
+  need.forEach(function(i){S.asked[i]=1;});
+  Promise.resolve(user.profiles(need)).then(function(res){
+    var got=false;need.forEach(function(i){var n=res&&res[i]&&res[i].name;if(n){S.names[i]=n;got=true;}});
+    if(got)schedule();
+  }).catch(function(){});
+}
+function meta(o){o.by=S.uid||null;o.at=Date.now();return o;}
+function num(v){return v===''||v==null?null:(Number(v)||0);}
+function copy(o){var x={};Object.keys(o||{}).forEach(function(k){if(k!=='id')x[k]=o[k];});return x;}
+function newId(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+/* ---------- derived ---------- */
+function plansOf(pid){return vals(S.plans).filter(function(x){return x.pid===pid;}).sort(function(a,b){return (a.order||0)-(b.order||0)||String(a.start||'').localeCompare(String(b.start||''));});}
+function kolsOf(pid){return vals(S.kols).filter(function(x){return x.pid===pid;});}
+function salesOf(pid){return vals(S.sales).filter(function(x){return x.pid===pid;});}
+function timing(s,e){var t=today();if(!s)return 'none';if(s>t)return 'soon';if(e&&e<t)return 'done';return 'live';}
+function overlaps(s,e,ps,pe){return s&&s<=pe&&(!e||e>=ps);}
+function kolNet(k){var q=Number(k.qty)||0,p=num(k.groupPrice);if(p==null)p=Number(k.price)||0;return q*p;}
+function sampleDone(p){return p.sampleStatus==='已寄出'||p.sampleStatus==='已到貨';}
+function bulkDone(p){return p.bulkStatus==='已到貨'||!!p.bulkActual;}
+function overdue(p){var t=today(),n=0;if(!sampleDone(p)&&p.sampleDate&&p.sampleDate<t)n++;if(!bulkDone(p)&&p.bulkPlan&&p.bulkPlan<t)n++;return n;}
+function mileSample(p){
+  if(sampleDone(p))return chip('ok','樣品 '+p.sampleStatus+(p.sampleDate?' '+md(p.sampleDate):''),true);
+  if(!p.sampleDate)return p.sampleNote?chip('i','樣品 '+short(p.sampleNote),true):chip('n','樣品 '+(p.sampleStatus||'未排'),true);
+  var d=diffDays(p.sampleDate,today());return chip(d<0?'bad':d<=3?'w':'i','樣品 '+md(p.sampleDate)+' · '+relText(d),true);
+}
+function mileBulk(p){
+  if(bulkDone(p))return chip('ok','大貨 已到貨'+(p.bulkActual?' '+md(p.bulkActual):''),true);
+  if(!p.bulkPlan)return p.bulkNote?chip('i','大貨 '+short(p.bulkNote),true):chip('n','大貨 '+(p.bulkStatus||'未排'),true);
+  var d=diffDays(p.bulkPlan,today());return chip(d<0?'bad':d<=7?'w':'i','大貨預計 '+md(p.bulkPlan)+' · '+relText(d),true);
+}
+function mileArt(p){return p.artStatus?chip(/完成/.test(p.artStatus)?'ok':'i','圖檔 '+short(p.artStatus),true):chip('n','圖檔 未填',true);}
+function short(t){t=String(t||'').replace(/\s+/g,' ');return t.length>16?t.slice(0,16)+'…':t;}
+function linkOrText(u,t){return /^https?:\/\//.test(u||'')?link(u,t):(u?'<span class="stamp" style="white-space:pre-wrap">'+esc(u)+'</span>':'');}
+function planChip(x){
+  var t=timing(x.start,x.end),cls={live:'ok',soon:'i',done:'x',none:'n'}[t];
+  return chip(cls,x.name+(x.stage?' · '+x.stage:''),true,x.confirm==='預估'?'est':'');
+}
+
+/* ---------- writes ---------- */
+function failWrite(e){
+  if(e&&e.code==='invalid_argument'){S.canWrite=false;S.err='readonly';}
+  else if(e&&e.code==='quota_exceeded')S.err='quota';
+  else S.err='writefail';
+  render();
+}
+function put(path,data){if(!db)return Promise.resolve();return db.doc(path).set(data).catch(failWrite);}
+function del(path){if(!db)return;db.doc(path).delete().catch(failWrite);}
+function setField(col,id,field,val){
+  var cur=S[col][id];if(!cur)return;
+  var o=copy(cur);o[field]=val;put(col+'/'+id,meta(o));
+}
+function saveSettings(patch){
+  var o=copy(S.settings);Object.keys(patch).forEach(function(k){o[k]=patch[k];});
+  put('settings/lists',meta(o));
+}
+function twoClick(key,fn){
+  if(S.confirm[key]){delete S.confirm[key];fn();return;}
+  S.confirm[key]=1;
+  setTimeout(function(){if(S.confirm[key]){delete S.confirm[key];schedule();}},3000);
+  schedule(true);
+}
+function delLabel(key){return S.confirm[key]?'再按一次刪除':'刪除';}
+
+/* ---------- board ---------- */
+function filtered(){
+  var q=S.q.trim().toLowerCase();
+  return productList().filter(function(p){return !q||[p.model,p.name,p.series].join(' ').toLowerCase().indexOf(q)>=0;});
+}
+function tiles(){
+  var all=productList();
+  var live=vals(S.plans).filter(function(x){return timing(x.start,x.end)==='live';}).length;
+  var open=vals(S.kols).filter(function(k){return k.status==='開團中';}).length;
+  var od=all.reduce(function(a,p){return a+overdue(p);},0);
+  return '<div class="tiles">'+
+    '<div class="tile"><b>'+all.length+'</b><span>追蹤中的型號</span></div>'+
+    '<div class="tile"><b>'+live+'</b><span>進行中的通路檔期</span></div>'+
+    '<div class="tile"><b>'+open+'</b><span>開團中的網紅／團購</span></div>'+
+    '<div class="tile'+(od?' alert':'')+'"><b>'+od+'</b><span>逾期未完成的樣品／大貨</span></div></div>';
+}
+var GROUPS=[['實體',['實體']],['網紅',['網紅']],['平台',['平台','電商']],['團購',['團購','直播']]];
+function imgSrc(p){return p&&p.imageId&&/^[A-Za-z0-9_-]+$/.test(p.imageId)?'/_blob/'+p.imageId:'';}
+function card(p){
+  var ps=plansOf(p.id),ks=kolsOf(p.id);
+  var live=ps.filter(function(x){return timing(x.start,x.end)==='live';});
+  var cnt={};ks.forEach(function(k){var st=k.status||'未填狀態';cnt[st]=(cnt[st]||0)+1;});
+  var kq=ks.reduce(function(a,k){return a+(Number(k.qty)||0);},0),kn=ks.reduce(function(a,k){return a+kolNet(k);},0);
+  var kchips=KOL_STATUS.concat(['未填狀態']).filter(function(s){return cnt[s];}).map(function(s){return chip(KOL_CLS[s],s+' '+cnt[s]);}).join('');
+  var gs=GROUPS.map(function(g){
+    var n=live.filter(function(x){return g[1].indexOf(x.cat)>=0;}).length;
+    return '<div class="gcount'+(n?' on':'')+'"><i class="catdot" style="background:'+(CAT_COLOR[g[0]]||'#7d8a97')+'"></i><span>'+g[0]+'</span><b>'+n+'</b></div>';
+  }).join('');
+  var src=imgSrc(p);
+  return '<button class="card" data-act="open" data-id="'+esc(p.id)+'" aria-label="開啟 '+esc(p.model)+' 詳細資料">'+
+    '<div class="pimg">'+(src?'<img src="'+esc(src)+'" alt="'+esc(p.model)+' 產品圖" loading="lazy">':'<span>尚無產品圖</span>')+'</div>'+
+    '<div class="card-h"><span class="code">'+esc(p.model)+'</span><span class="pname">'+esc(p.mktOwner?'行銷 '+p.mktOwner:'')+'</span></div>'+
+    '<div class="pname" style="margin-top:-6px">推廣期間 '+esc(p.period||'未填')+'</div>'+
+    '<div><div class="sub">通路規劃：進行中（含確定與預估）</div><div class="gcounts">'+gs+'</div></div>'+
+    '<div><div class="sub">網紅／團購</div><div class="chips">'+(kchips||'<span class="stamp">尚無名單</span>')+'</div></div>'+
+    '<div class="foot"><span>通路 <b>'+ps.length+'</b>（進行中 <b>'+live.length+'</b>）</span><span>網紅／團購銷量 <b>'+money(kq)+'</b></span><span>淨營業額 <b>'+money(kn)+'</b></span></div>'+
+    '</button>';
+}
+function viewBoard(){
+  var lst=filtered(),h=tiles();
+  h+='<div class="toolbar"><h2>型號看板</h2><div class="grow"></div><button class="btn primary" data-act="newProduct"'+(can('addProduct')?'':' disabled title="商品開發或行銷可新增型號"')+'>＋ 新增型號</button></div>';
+  if(!lst.length)h+='<div class="empty">'+(S.loaded.products?(S.q?'沒有符合搜尋的型號。':'還沒有型號。商品開發或行銷可按「新增型號」開始。'):'載入中…')+'</div>';
+  else h+='<div class="cards">'+lst.map(card).join('')+'</div>';
+  return h;
+}
+
+/* ---------- timeline ---------- */
+function viewTimeline(){
+  var NW=20,PW=40,PD=PW/7,total=NW*PW;
+  var gs=S.tlStart||monday(addDays(today(),-42)),ge=addDays(gs,NW*7-1);
+  var prods=filtered();if(S.tlModel)prods=prods.filter(function(p){return p.id===S.tlModel;});
+  function px(s){return diffDays(s,gs)*PD;}
+  function bar(s,e,color,label,title,est){
+    if(!s)return '';var open=!e,end=e||ge;if(end<gs||s>ge)return '';
+    var l=Math.max(0,px(s)),r=Math.min(total,(diffDays(end,gs)+1)*PD);if(r<=l)return '';
+    return '<div class="bar'+(open?' open':'')+(est?' est':'')+'" style="left:'+l+'px;width:'+Math.max(r-l,6)+'px;background:'+color+'" title="'+esc(title)+'">'+esc(label)+'</div>';
+  }
+  function ms(d,cls,sym,title){if(!d||d<gs||d>ge)return '';return '<div class="ms '+cls+'" style="left:'+(px(d)+PD/2)+'px" title="'+esc(title)+'">'+sym+'</div>';}
+  function row(label,inner,cls){return '<div class="tl-row'+(cls?' '+cls:'')+'"><div class="tl-label">'+label+'</div><div class="tl-track" style="width:'+total+'px">'+inner+'</div></div>';}
+  var head='<div class="tl-row tl-head"><div class="tl-label">型號／項目</div><div class="tl-track" style="width:'+total+'px">',lastM=-1;
+  for(var i=0;i<NW;i++){var d=addDays(gs,i*7),m=parse(d).getMonth();
+    if(m!==lastM){head+='<div class="tl-mo" style="left:'+(i*PW)+'px">'+(m+1)+'月</div>';lastM=m;}
+    head+='<div class="tl-wk" style="left:'+(i*PW)+'px;top:16px">'+md(d)+'</div>';}
+  head+='</div></div>';
+  var rows='';
+  prods.forEach(function(p){
+    rows+=row('<span>'+esc(p.model)+' '+esc(p.name||'')+'</span>',ms(p.sampleDate,'s','◆','樣品 '+(p.sampleDate||''))+ms(p.bulkActual||p.bulkPlan,'b','▲','大貨 '+(p.bulkActual||p.bulkPlan||'')),'tl-prod');
+    var ps=plansOf(p.id).filter(function(x){return x.start;});
+    if(ps.length){rows+=row('<span>通路規劃</span>','','tl-group');
+      ps.forEach(function(x){rows+=row(catTag(x.cat)+'<span>'+esc(x.name)+'</span>',bar(x.start,x.end,CAT_COLOR[x.cat]||'#7d8a97',x.name+(x.stage?' '+x.stage:''),x.name+' '+(x.stage||'')+' '+x.start+' ~ '+(x.end||'未定')+(x.confirm?'（'+x.confirm+'）':''),x.confirm==='預估'));});}
+    if(S.tlKol){
+      var ks=kolsOf(p.id).filter(function(k){return k.start&&k.status!=='不開團';}).sort(function(a,b){return a.start.localeCompare(b.start);});
+      if(ks.length){rows+=row('<span>網紅／團購</span>','','tl-group');
+        ks.forEach(function(k){rows+=row('<span>'+esc(k.name)+'</span>'+chip(KOL_CLS[k.status]||'n',k.status||''),bar(k.start,k.end,CAT_COLOR[k.type]||CAT_COLOR['網紅'],k.name,k.name+' 開團 '+k.start+' ~ '+(k.end||'未定')+'，銷量 '+(k.qty||0)));});}
+    }
+  });
+  var tx=diffDays(today(),gs)*PD,line=(tx>=0&&tx<=total)?'<div class="today" style="left:calc(var(--lw) + '+tx+'px)"></div>':'';
+  var o='<option value="">全部型號</option>'+productList().map(function(p){return '<option value="'+esc(p.id)+'"'+(S.tlModel===p.id?' selected':'')+'>'+esc(p.model)+'</option>';}).join('');
+  var h='<div class="toolbar"><h2>時間軸</h2><div class="grow"></div>'+
+    '<label class="who"><input type="checkbox" id="tlKol"'+(S.tlKol?' checked':'')+'> 顯示網紅／團購</label>'+
+    '<select id="tlModel" class="btn" aria-label="篩選型號">'+o+'</select>'+
+    '<button class="btn" data-act="tlPrev">← 前 4 週</button><button class="btn" data-act="tlToday">回到本週</button><button class="btn" data-act="tlNext">後 4 週 →</button></div>';
+  if(!prods.length)return h+'<div class="empty">沒有可顯示的型號。</div>';
+  h+='<div class="tl-wrap"><div class="tl">'+head+rows+line+'</div></div><div class="legend">'+
+    ['實體','網紅','電商','團購','直播','贈品'].map(function(c){return '<span><i style="background:'+CAT_COLOR[c]+'"></i>'+c+'</span>';}).join('')+
+    '<span>淡色虛線框＝預估</span><span style="color:var(--r-dev)">◆ 樣品</span><span style="color:var(--bad-ink)">▲ 大貨</span><span style="color:var(--bad-ink)">▏紅線＝今天</span></div>';
+  return h;
+}
+
+/* ---------- report ---------- */
+function period(){
+  var a=S.rep.anchor||today();
+  if(S.rep.mode==='week'){var s=monday(a),e=addDays(s,6);return {s:s,e:e,label:s+' ～ '+e+'（週一至週日）'};}
+  var d=parse(a),s2=iso(new Date(d.getFullYear(),d.getMonth(),1)),e2=iso(new Date(d.getFullYear(),d.getMonth()+1,0));
+  return {s:s2,e:e2,label:d.getFullYear()+' 年 '+(d.getMonth()+1)+' 月'};
+}
+function tag(s,e,P){return s>=P.s&&s<=P.e?chip('i','本期開始'):(e&&e>=P.s&&e<=P.e?chip('w','本期結束'):chip('ok','進行中'));}
+function viewReport(){
+  var P=period(),pr=S.products,pm=function(x){return pr[x.pid]?pr[x.pid].model:'(已刪除)';};
+  var sortFn=function(a,b){return (pm(a)+(a.start||'')).localeCompare(pm(b)+(b.start||''),'zh',{numeric:true});};
+  var ps=vals(S.plans).filter(function(x){return overlaps(x.start,x.end,P.s,P.e);}).sort(sortFn);
+  var ks=vals(S.kols).filter(function(k){return k.status!=='不開團'&&overlaps(k.start,k.end,P.s,P.e);}).sort(sortFn);
+  var sent=vals(S.kols).filter(function(k){return k.sampleDate&&k.sampleDate>=P.s&&k.sampleDate<=P.e;});
+  var sl=vals(S.sales).filter(function(s){return s.date&&s.date>=P.s&&s.date<=P.e;});
+  var kq=ks.reduce(function(a,k){return a+(Number(k.qty)||0);},0),kn=ks.reduce(function(a,k){return a+kolNet(k);},0);
+  var h='<div class="toolbar"><h2>週報／月報</h2><div class="grow"></div>'+
+    '<button class="btn'+(S.rep.mode==='week'?' primary':'')+'" data-act="repMode" data-mode="week">週報</button>'+
+    '<button class="btn'+(S.rep.mode==='month'?' primary':'')+'" data-act="repMode" data-mode="month">月報</button>'+
+    '<button class="btn" data-act="repPrev">← 上一期</button><button class="btn" data-act="repToday">本期</button><button class="btn" data-act="repNext">下一期 →</button></div>'+
+    '<p style="margin:0 0 12px;font-weight:700">'+esc(P.label)+'</p>'+
+    '<div class="tiles"><div class="tile"><b>'+ps.length+'</b><span>期間內的通路檔期</span></div>'+
+    '<div class="tile"><b>'+ks.length+'</b><span>期間內開團的網紅／團購</span></div>'+
+    '<div class="tile"><b>'+sent.length+'</b><span>期間內寄樣給網紅</span></div>'+
+    '<div class="tile"><b>'+money(kq)+'</b><span>網紅／團購銷量　淨營業額 '+money(kn)+'</span></div></div>';
+  var ms=[];
+  productList().forEach(function(p){
+    if(p.sampleDate&&p.sampleDate>=P.s&&p.sampleDate<=P.e)ms.push([p.sampleDate,p.model,'樣品',p.sampleStatus||'']);
+    var bd=p.bulkActual||p.bulkPlan;if(bd&&bd>=P.s&&bd<=P.e)ms.push([bd,p.model,'大貨',bulkDone(p)?'已到貨':(bd<today()?'逾期':'預計')]);
+  });
+  ms.sort();
+  if(ms.length)h+='<div class="rep-sec"><h2>商品開發：樣品與大貨</h2><div class="tbl-wrap"><table><thead><tr><th>日期</th><th>型號</th><th>項目</th><th>狀態</th></tr></thead><tbody>'+
+    ms.map(function(m){return '<tr><td>'+esc(m[0])+'</td><td>'+esc(m[1])+'</td><td>'+m[2]+'</td><td>'+chip(m[3]==='逾期'?'bad':/到貨|寄出/.test(m[3])?'ok':'i',m[3]||'—')+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  h+='<div class="rep-sec"><h2>通路規劃</h2>'+(ps.length?'<div class="tbl-wrap"><table><thead><tr><th>型號</th><th>分類</th><th>通路／項目</th><th>窗口</th><th>階段</th><th>檔期</th><th>本期</th><th>行銷備註</th><th>業務更新</th></tr></thead><tbody>'+
+    ps.map(function(x){return '<tr><td>'+esc(pm(x))+'</td><td>'+catTag(x.cat)+'</td><td><b>'+esc(x.name)+'</b>'+(x.confirm==='預估'?' '+chip('n','預估','', 'est'):'')+'</td><td>'+esc(x.contact||'')+'</td><td>'+esc(x.stage||'')+'</td><td>'+esc(span(x.start,x.end))+'</td><td>'+tag(x.start,x.end,P)+'</td><td class="pre">'+esc(x.mktNote||'')+'</td><td class="pre">'+esc(x.salesUpdate||'')+'</td></tr>';}).join('')+
+    '</tbody></table></div>':'<div class="empty">這段期間沒有通路檔期。</div>')+'</div>';
+  h+='<div class="rep-sec"><h2>網紅／團購</h2>'+(ks.length?'<div class="tbl-wrap"><table><thead><tr><th>型號</th><th>名稱</th><th>類型</th><th>窗口</th><th>狀態</th><th>開團期間</th><th>本期</th><th class="num">銷量</th><th class="num">淨營業額</th><th>備註</th></tr></thead><tbody>'+
+    ks.map(function(k){return '<tr><td>'+esc(pm(k))+'</td><td><b>'+esc(k.name)+'</b> '+link(k.link)+'</td><td>'+esc(k.type||'')+'</td><td>'+esc(k.rep||'')+'</td><td>'+chip(KOL_CLS[k.status]||'n',k.status||'—',true)+'</td><td>'+esc(span(k.start,k.end))+'</td><td>'+tag(k.start,k.end,P)+'</td><td class="num">'+money(k.qty)+'</td><td class="num">'+money(kolNet(k))+'</td><td class="pre">'+esc([k.feedback,k.mktNote].filter(Boolean).join('\n'))+'</td></tr>';}).join('')+
+    '</tbody></table></div>':'<div class="empty">這段期間沒有開團。</div>')+'</div>';
+  if(sent.length)h+='<div class="rep-sec"><h2>本期寄樣</h2><div class="tbl-wrap"><table><thead><tr><th>寄樣日</th><th>型號</th><th>名稱</th><th>窗口</th><th>目前狀態</th></tr></thead><tbody>'+
+    sent.sort(function(a,b){return a.sampleDate.localeCompare(b.sampleDate);}).map(function(k){return '<tr><td>'+esc(k.sampleDate)+'</td><td>'+esc(pm(k))+'</td><td>'+esc(k.name)+'</td><td>'+esc(k.rep||'')+'</td><td>'+chip(KOL_CLS[k.status]||'n',k.status||'—',true)+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  if(sl.length){
+    var agg={};sl.forEach(function(s){var k=s.pid+'|'+s.plan;agg[k]=agg[k]||{pid:s.pid,plan:s.plan,q:0,a:0};agg[k].q+=Number(s.qty)||0;agg[k].a+=Number(s.amount)||0;});
+    h+='<div class="rep-sec"><h2>業務銷售回報</h2><div class="tbl-wrap"><table><thead><tr><th>型號</th><th>通路</th><th class="num">數量</th><th class="num">金額</th></tr></thead><tbody>'+
+      Object.keys(agg).sort().map(function(k){var x=agg[k];return '<tr><td>'+esc(pr[x.pid]?pr[x.pid].model:'(已刪除)')+'</td><td>'+esc(S.plans[x.plan]?S.plans[x.plan].name:'(已刪除)')+'</td><td class="num">'+money(x.q)+'</td><td class="num">'+money(x.a)+'</td></tr>';}).join('')+'</tbody></table></div></div>';
+  }
+  return h;
+}
+
+/* ---------- settings ---------- */
+function chipEditor(key,label,ph){
+  var ok=can('settings'),dis=ok?'':' disabled';
+  return '<div class="rep-sec"><h2>'+label+'</h2><div class="chips" style="margin:8px 0">'+
+    list(key).map(function(p){return '<span class="chip n">'+esc(p)+' <button class="btn small" style="padding:0 5px;border:0;background:transparent" data-act="delItem" data-key="'+key+'" data-name="'+esc(p)+'" aria-label="刪除 '+esc(p)+'"'+dis+'>×</button></span>';}).join('')+'</div>'+
+    '<div class="setrow" style="max-width:520px"><input id="add-'+key+'" placeholder="'+esc(ph)+'" aria-label="新增'+esc(label)+'"'+dis+'><button class="btn primary small" data-act="addItem" data-key="'+key+'"'+dis+'>新增</button></div></div>';
+}
+function viewSettings(){
+  var rc={'行銷':'mkt','業務':'sales','商品開發':'dev'};
+  var h='<div class="toolbar"><h2>設定與分工</h2></div><div class="roles">'+
+    ROLES.map(function(r){return '<div class="rolecard" style="--c:'+(rc[r]?'var(--r-'+rc[r]+')':'var(--line)')+'"><b>'+r+'</b>'+esc(ROLE_NOTE[r])+'</div>';}).join('')+'</div>'+
+    '<p class="hint" style="margin:-6px 0 18px">角色是畫面上的分工：選了角色，才能改該角色負責的欄位，其他欄位會變成唯讀。這不是帳號權限，每筆資料都會記錄最後更新的人。下列選單清單由行銷維護。</p>';
+  h+=chipEditor('cats','通路分類','例如：實體')+chipEditor('stages','通路階段','例如：提報')+chipEditor('reps','業務窗口（網紅／團購）','例如：馨鄞')+chipEditor('platforms','網紅平台','例如：IG')+chipEditor('kolTypes','網紅／團購類型','例如：團購');
+  return h;
+}
+
+/* ---------- modal ---------- */
+function lockNote(perm,owner){return can(perm)?'':'<span class="lock">由'+owner+'填寫'+(S.role?'':'（請先選角色）')+'</span>';}
+function inp(label,type,col,field,val,dis,cls){
+  return '<label class="f'+(cls?' '+cls:'')+'">'+label+'<input type="'+type+'" data-col="'+col+'" data-field="'+field+'" value="'+esc(val==null?'':val)+'"'+dis+'></label>';
+}
+function sel(label,col,field,arr,val,dis){
+  return '<label class="f">'+label+'<select data-col="'+col+'" data-field="'+field+'"'+dis+'>'+opts(arr,val||arr[0])+'</select></label>';
+}
+function modalProduct(p){
+  var dd=can('dev')?'':' disabled',dm=can('mktInfo')?'':' disabled';
+  var h='<div class="panel" role="dialog" aria-modal="true" aria-label="'+esc(p.model)+'"><div class="panel-h"><div><div class="code">'+esc(p.model)+'</div><div class="pname">'+esc(p.name||'')+(p.period?' · 規劃期間 '+esc(p.period):'')+'</div></div><button class="btn" data-act="close">關閉</button></div><div class="panel-b">';
+  var canImg=!!(assetsNS&&(can('mktInfo')||can('dev'))),isrc=imgSrc(p);
+  h+='<section class="sec"><div class="sec-h"><h3>產品圖</h3><small>建議用去背 PNG 或白底圖，顯示在型號卡片上方</small></div><div class="imgbox"><div class="pimg">'+(isrc?'<img src="'+esc(isrc)+'" alt="'+esc(p.model)+' 產品圖">':'<span>尚無產品圖</span>')+'</div><div>'+
+    (canImg?'<label class="btn primary" style="display:inline-block">'+(isrc?'更換圖片':'上傳圖片')+'<input type="file" id="imgUp" accept="image/png,image/jpeg,image/webp" hidden></label> '+(isrc?'<button class="btn" data-act="clearImg">移除圖片</button>':''):'<p class="hint" style="margin:0">'+(assetsNS?'行銷或商品開發可以上傳圖片。':'你目前的權限無法上傳圖片，請頁面擁有者把你設為 Contributor 以上。')+'</p>')+
+    (S.imgMsg?'<p class="hint">'+esc(S.imgMsg)+'</p>':'')+'</div></div></section>';
+  h+='<section class="sec dev"><div class="sec-h"><h3>商品進度</h3><small>樣品、大貨由商品開發填寫；品名、圖檔、素材由行銷填寫（行銷可改全部）</small><span class="lock">'+esc(stamp(p))+'</span></div><div class="grid2">'+
+    '<div class="box"><h4>商品開發 '+lockNote('dev','商品開發')+'</h4><div class="fields">'+
+      sel('樣品狀態','products','sampleStatus',SAMPLE_ST,p.sampleStatus,dd)+inp('樣品日期','date','products','sampleDate',p.sampleDate,dd)+
+      sel('大貨狀態','products','bulkStatus',BULK_ST,p.bulkStatus,dd)+inp('大貨預計到倉日','date','products','bulkPlan',p.bulkPlan,dd)+
+      inp('大貨實際到倉日','date','products','bulkActual',p.bulkActual,dd)+
+      inp('樣品說明','text','products','sampleNote',p.sampleNote,dd,'wide')+inp('大貨說明','text','products','bulkNote',p.bulkNote,dd,'wide')+'</div></div>'+
+    '<div class="box"><h4>行銷 '+lockNote('mktInfo','行銷')+'</h4><div class="fields">'+
+      inp('品名','text','products','name',p.name,dm)+inp('行銷負責人','text','products','mktOwner',p.mktOwner,dm)+
+      inp('規劃期間','text','products','period',p.period,dm)+inp('圖檔狀態','text','products','artStatus',p.artStatus,dm)+
+      inp('可運用素材路徑','text','products','assetLink',p.assetLink,dm,'wide')+inp('產品介紹簡報（網址或檔名）','text','products','deckLink',p.deckLink,dm,'wide')+
+      '<label class="f wide">其他備註（募資、上架、更新期限等）<textarea data-col="products" data-field="devNote"'+dm+'>'+esc(p.devNote||'')+'</textarea></label>'+
+      '</div>'+((p.assetLink||p.deckLink)?'<p class="links" style="margin:8px 0 0">'+(p.assetLink?'素材：'+linkOrText(p.assetLink,'開啟素材')+'<br>':'')+(p.deckLink?'簡報：'+linkOrText(p.deckLink,'開啟簡報'):'')+'</p>':'')+'</div>'+
+    '</div></section>';
+  h+=planSection(p)+kolSection(p)+salesSection(p)+'</div></div>';
+  return h;
+}
+function planSection(p){
+  var ps=plansOf(p.id),dp=can('plan')?'':' disabled',ds=can('planSales')?'':' disabled';
+  var h='<section class="sec mkt"><div class="sec-h"><h3>通路規劃</h3><small>行銷建立與備註，業務填「業務更新」</small><span class="lock">'+(can('plan')?'你可以編輯整列':can('planSales')?'你可以填業務更新':'唯讀')+'</span></div>';
+  if(ps.length){
+    h+='<div class="tbl-wrap"><table><thead><tr><th>分類</th><th>通路／項目</th><th>窗口</th><th>階段／內容</th><th>檔期</th><th>行銷規劃／備註</th><th>業務更新</th><th></th></tr></thead><tbody>'+
+      ps.map(function(x){
+        var t=timing(x.start,x.end);
+        return '<tr'+(t==='done'?' class="dim"':'')+'><td>'+catTag(x.cat)+'</td><td><b>'+esc(x.name)+'</b><br>'+(x.confirm==='預估'?chip('n','預估','','est'):chip('i','確定'))+(t==='live'?' '+chip('ok','進行中'):'')+'</td><td>'+esc(x.contact||'')+'</td><td>'+esc(x.stage||'')+'</td><td style="white-space:nowrap">'+esc(span(x.start,x.end))+'</td>'+
+          '<td class="pre">'+esc(x.mktNote||'')+'</td>'+
+          '<td><textarea data-col="plans" data-id="'+esc(x.id)+'" data-field="salesUpdate" aria-label="'+esc(x.name)+' 業務更新"'+ds+'>'+esc(x.salesUpdate||'')+'</textarea></td>'+
+          '<td><div class="rowact"><button class="btn small" data-act="edit" data-kind="plan" data-id="'+esc(x.id)+'"'+dp+'>編輯</button><button class="btn small danger" data-act="delPlan" data-id="'+esc(x.id)+'"'+dp+'>'+delLabel('p'+x.id)+'</button></div></td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }else h+='<p class="hint" style="margin:0">還沒有通路規劃。</p>';
+  if(S.edit.kind==='plan')h+=planForm(S.edit.id?S.plans[S.edit.id]:null,dp);
+  else h+='<div style="margin-top:10px"><button class="btn primary" data-act="new" data-kind="plan"'+dp+'>＋ 新增通路</button></div>';
+  return h+'</section>';
+}
+function planForm(x,dp){
+  x=x||{};var ds=can('planSales')||can('plan')?'':' disabled';
+  return '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><h3 style="font-size:14px;margin:0 0 8px">'+(S.edit.id?'編輯通路':'新增通路')+'</h3><div class="fields">'+
+    '<label class="f">分類<select id="pf-cat"'+dp+'>'+opts(list('cats'),x.cat||list('cats')[0])+'</select></label>'+
+    '<label class="f">通路／項目<input id="pf-name" value="'+esc(x.name||'')+'"'+dp+'></label>'+
+    '<label class="f">窗口<input id="pf-contact" value="'+esc(x.contact||'')+'"'+dp+'></label>'+
+    '<label class="f">階段／內容<input id="pf-stage" list="stlist" value="'+esc(x.stage||'')+'"'+dp+'><datalist id="stlist">'+list('stages').map(function(v){return '<option value="'+esc(v)+'">';}).join('')+'</datalist></label>'+
+    '<label class="f">確定／預估<select id="pf-confirm"'+dp+'>'+opts(['確定','預估'],x.confirm||'預估')+'</select></label>'+
+    '<label class="f">開始日期<input id="pf-start" type="date" value="'+esc(x.start||'')+'"'+dp+'></label>'+
+    '<label class="f">結束日期<input id="pf-end" type="date" value="'+esc(x.end||'')+'"'+dp+'></label>'+
+    '<label class="f wide">行銷規劃／備註<textarea id="pf-mkt"'+dp+'>'+esc(x.mktNote||'')+'</textarea></label></div>'+
+    (S.formErr&&S.formFor==='plan'?'<p class="err">'+esc(S.formErr)+'</p>':'')+
+    '<div style="margin-top:8px;display:flex;gap:8px"><button class="btn primary" data-act="savePlan"'+dp+'>儲存</button><button class="btn" data-act="cancel">取消</button></div></div>';
+}
+function kolSection(p){
+  var all=kolsOf(p.id),dk=can('kol')?'':' disabled';
+  var order=function(k){var i=KOL_STATUS.indexOf(k.status);return i<0?9:[2,1,0,3,4][i];};
+  var ks=all.filter(function(k){return !S.kolFilter||k.status===S.kolFilter;}).sort(function(a,b){return order(a)-order(b)||String(b.start||b.sampleDate||'').localeCompare(String(a.start||a.sampleDate||''));});
+  var cnt={};all.forEach(function(k){cnt[k.status]=(cnt[k.status]||0)+1;});
+  var tq=all.reduce(function(a,k){return a+(Number(k.qty)||0);},0),tn=all.reduce(function(a,k){return a+kolNet(k);},0);
+  var h='<section class="sec sales"><div class="sec-h"><h3>網紅／團購</h3><small>共 '+all.length+' 筆，銷量 '+money(tq)+'，淨營業額 '+money(tn)+'</small><span class="lock">'+(can('kol')?'你可以編輯':'唯讀')+'</span></div>'+
+    '<div class="filters"><button data-act="kolFilter" data-v="" aria-pressed="'+(!S.kolFilter)+'">全部 '+all.length+'</button>'+
+    KOL_STATUS.map(function(s){return '<button data-act="kolFilter" data-v="'+s+'" aria-pressed="'+(S.kolFilter===s)+'">'+s+' '+(cnt[s]||0)+'</button>';}).join('')+'</div>';
+  if(ks.length){
+    h+='<div class="tbl-wrap"><table><thead><tr><th>窗口</th><th>名稱</th><th>類型／平台</th><th>狀態</th><th>寄樣</th><th>開團期間</th><th class="num">銷量</th><th class="num">售價／團購價</th><th class="num">淨營業額</th><th>備註／客訴反饋</th><th>行銷備註</th><th></th></tr></thead><tbody>'+
+      ks.map(function(k){
+        return '<tr'+(k.status==='不開團'?' class="dim"':'')+'><td>'+esc(k.rep||'')+(k.client?'<div class="stamp">客戶 '+esc(k.client)+'</div>':'')+'</td><td><b>'+esc(k.name)+'</b> '+link(k.link)+(k.subModel?' '+chip('n',k.subModel):'')+(k.audience?'<div class="stamp">'+esc(k.audience.length>40?k.audience.slice(0,40)+'…':k.audience)+'</div>':'')+'</td><td>'+esc(k.type||'')+'<div class="stamp">'+esc(k.platform||'')+'</div></td>'+
+          '<td>'+chip(KOL_CLS[k.status]||'n',k.status||'—',true)+'</td><td>'+esc(md(k.sampleDate))+'</td><td style="white-space:nowrap">'+esc(k.start?span(k.start,k.end):'')+'</td>'+
+          '<td class="num">'+(k.qty==null?'':money(k.qty))+'</td><td class="num">'+(k.price!=null?money(k.price):'')+(k.groupPrice!=null?' / '+money(k.groupPrice):'')+'</td><td class="num">'+money(kolNet(k))+'</td>'+
+          '<td class="pre">'+esc(k.feedback||'')+'</td><td class="pre">'+esc(k.mktNote||'')+(k.mktOwner?'<div class="stamp">行銷窗口 '+esc(k.mktOwner)+'</div>':'')+'</td>'+
+          '<td><div class="rowact"><button class="btn small" data-act="edit" data-kind="kol" data-id="'+esc(k.id)+'"'+dk+'>編輯</button><button class="btn small danger" data-act="delKol" data-id="'+esc(k.id)+'"'+dk+'>'+delLabel('k'+k.id)+'</button></div></td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }else h+='<p class="hint" style="margin:0">'+(all.length?'這個狀態沒有資料。':'還沒有網紅或團購。')+'</p>';
+  if(S.edit.kind==='kol')h+=kolForm(S.edit.id?S.kols[S.edit.id]:null,dk);
+  else h+='<div style="margin-top:10px"><button class="btn primary" data-act="new" data-kind="kol"'+dk+'>＋ 新增網紅／團購</button></div>';
+  return h+'</section>';
+}
+function kolForm(k,dk){
+  k=k||{};var dm=can('kolMkt')?'':' disabled';
+  var pl=list('platforms').map(function(x){return '<option value="'+esc(x)+'">';}).join('');
+  return '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><h3 style="font-size:14px;margin:0 0 8px">'+(S.edit.id?'編輯':'新增')+'網紅／團購</h3><div class="fields">'+
+    '<label class="f">業務窗口<select id="kf-rep"'+dk+'>'+opts(list('reps'),k.rep||list('reps')[0])+'</select></label>'+
+    '<label class="f">客戶名稱<input id="kf-client" value="'+esc(k.client||'')+'"'+dk+'></label>'+
+    '<label class="f">KOL／團媽名稱<input id="kf-name" value="'+esc(k.name||'')+'"'+dk+'></label>'+
+    '<label class="f">產品型號<input id="kf-sub" value="'+esc(k.subModel||'')+'"'+dk+'></label>'+
+    '<label class="f">類型<select id="kf-type"'+dk+'>'+opts(list('kolTypes'),k.type||list('kolTypes')[0])+'</select></label>'+
+    '<label class="f">主要平台<input id="kf-platform" list="kpl" value="'+esc(k.platform||'')+'"'+dk+'><datalist id="kpl">'+pl+'</datalist></label>'+
+    '<label class="f">狀態<select id="kf-status"'+dk+'>'+opts(KOL_STATUS,k.status||'洽談中')+'</select></label>'+
+    '<label class="f">寄樣日期<input id="kf-sample" type="date" value="'+esc(k.sampleDate||'')+'"'+dk+'></label>'+
+    '<label class="f">開團時間<input id="kf-start" type="date" value="'+esc(k.start||'')+'"'+dk+'></label>'+
+    '<label class="f">結束時間<input id="kf-end" type="date" value="'+esc(k.end||'')+'"'+dk+'></label>'+
+    '<label class="f">銷售量<input id="kf-qty" type="number" min="0" value="'+esc(k.qty==null?'':k.qty)+'"'+dk+'></label>'+
+    '<label class="f">售價（市價）<input id="kf-price" type="number" min="0" value="'+esc(k.price==null?'':k.price)+'"'+dk+'></label>'+
+    '<label class="f">團購價<input id="kf-gprice" type="number" min="0" value="'+esc(k.groupPrice==null?'':k.groupPrice)+'"'+dk+'></label>'+
+    '<label class="f wide">受眾屬性／標籤<input id="kf-aud" value="'+esc(k.audience||'')+'"'+dk+'></label>'+
+    '<label class="f wide">貼文／追蹤連結<input id="kf-link" type="url" placeholder="https://" value="'+esc(k.link||'')+'"'+dk+'></label>'+
+    '<label class="f wide">備註／客訴反饋<textarea id="kf-fb"'+dk+'>'+esc(k.feedback||'')+'</textarea></label>'+
+    '<label class="f wide">行銷備註／建議（行銷填寫）<textarea id="kf-mkt"'+dm+'>'+esc(k.mktNote||'')+'</textarea></label>'+
+    '<label class="f">行銷窗口<input id="kf-mo" value="'+esc(k.mktOwner||'')+'"'+dm+'></label></div>'+
+    '<p class="hint">淨營業額會自動用「銷售量 × 團購價」計算。</p>'+
+    (S.formErr&&S.formFor==='kol'?'<p class="err">'+esc(S.formErr)+'</p>':'')+
+    '<div style="margin-top:8px;display:flex;gap:8px"><button class="btn primary" data-act="saveKol"'+dk+'>儲存</button><button class="btn" data-act="cancel">取消</button></div></div>';
+}
+function salesSection(p){
+  var dsl=can('sales')?'':' disabled',ps=plansOf(p.id);
+  var sl=salesOf(p.id).sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
+  var h='<section class="sec sales"><div class="sec-h"><h3>銷售回報</h3><small>業務按週或按月回報各通路銷量</small><span class="lock">'+(can('sales')?'你可以編輯':'唯讀')+'</span></div>';
+  if(!ps.length)return h+'<p class="hint" style="margin:0">請行銷先建立通路規劃，才能回報銷售。</p></section>';
+  h+='<div class="fields"><label class="f">通路<select id="sf-plan"'+dsl+'>'+ps.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join('')+'</select></label>'+
+    '<label class="f">日期（該週或該月任一天）<input id="sf-date" type="date" value="'+today()+'"'+dsl+'></label>'+
+    '<label class="f">數量<input id="sf-qty" type="number" min="0"'+dsl+'></label>'+
+    '<label class="f">金額（元）<input id="sf-amt" type="number" min="0"'+dsl+'></label>'+
+    '<label class="f wide">備註<input id="sf-note"'+dsl+'></label></div>'+
+    '<div style="margin-top:8px"><button class="btn primary" data-act="addSale"'+dsl+'>新增銷售紀錄</button></div>'+
+    (S.formErr&&S.formFor==='sale'?'<p class="err">'+esc(S.formErr)+'</p>':'');
+  if(sl.length)h+='<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr><th>日期</th><th>通路</th><th class="num">數量</th><th class="num">金額</th><th>備註</th><th></th></tr></thead><tbody>'+
+    sl.slice(0,30).map(function(s){return '<tr><td>'+esc(s.date)+'</td><td>'+esc(S.plans[s.plan]?S.plans[s.plan].name:'(已刪除)')+'</td><td class="num">'+money(s.qty)+'</td><td class="num">'+money(s.amount)+'</td><td>'+esc(s.note||'')+'</td><td><button class="btn small danger" data-act="delSale" data-id="'+esc(s.id)+'"'+dsl+'>'+delLabel('s'+s.id)+'</button></td></tr>';}).join('')+'</tbody></table></div>';
+  return h+'</section>';
+}
+function modalNew(){
+  var d=can('addProduct')?'':' disabled';
+  return '<div class="panel narrow" role="dialog" aria-modal="true" aria-label="新增型號"><div class="panel-h"><div class="code" style="font-size:16px">新增型號</div><button class="btn" data-act="close">關閉</button></div><div class="panel-b">'+
+    '<div class="fields" style="grid-template-columns:1fr">'+
+    '<label class="f">型號（必填）<input id="np-model" placeholder="例如 WM-15"'+d+'></label>'+
+    '<label class="f">品名<input id="np-name" placeholder="例如 淨速洗雙槽柔護無線洗衣機"'+d+'></label>'+
+    '<label class="f">規劃期間<input id="np-period" placeholder="例如 2026/08/01 ～ 2026/11/30"'+d+'></label></div>'+
+    (S.formErr&&S.formFor==='new'?'<p class="err">'+esc(S.formErr)+'</p>':'')+
+    '<div><button class="btn primary" data-act="saveNewProduct"'+d+'>建立型號</button></div></div></div>';
+}
+function renderModal(){
+  var m=$('#modal');
+  if(S.modalMode==='new'){m.hidden=false;m.innerHTML=modalNew();return;}
+  var p=S.sel&&S.products[S.sel];
+  if(!p){m.hidden=true;m.innerHTML='';S.sel=null;return;}
+  wantNames([p.by]);
+  var keep=m.scrollTop;m.hidden=false;m.innerHTML=modalProduct(p);m.scrollTop=keep;
+}
+function modalBusy(){
+  var m=$('#modal');if(m.hidden)return false;
+  var a=document.activeElement;
+  if(a&&m.contains(a)&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))return true;
+  return !!(S.edit.kind);
+}
+
+/* ---------- main render ---------- */
+function renderStatic(){
+  $('#tabs').innerHTML=VIEWS.map(function(v){return '<button data-act="tab" data-view="'+v[0]+'"'+(S.view===v[0]?' aria-current="page"':'')+'>'+v[1]+'</button>';}).join('');
+  var r=$('#role');
+  if(!r.dataset.built){r.innerHTML='<option value="">請選擇</option>'+ROLES.map(function(x){return '<option>'+x+'</option>';}).join('');r.dataset.built='1';}
+  r.value=S.role||'';
+  $('#search').style.display=(S.view==='board'||S.view==='timeline')?'':'none';
+}
+function banner(){
+  var b='';
+  if(S.err==='nodb')b+='<div class="note">需要登入 Claude，並由頁面擁有者分享給你，才能讀寫共用資料。</div>';
+  if(S.err==='slow')b+='<div class="note">資料連線較慢，畫面可能不是最新內容。</div>';
+  if(S.err==='readonly'||!S.canWrite)b+='<div class="note">你目前是唯讀身分，無法儲存。請頁面擁有者把你設為「Contributor」。</div>';
+  if(S.err==='writefail')b+='<div class="note">儲存失敗，請稍後再試。</div>';
+  if(S.err==='quota')b+='<div class="note">資料筆數已達上限，請刪除不需要的紀錄後再新增。</div>';
+  if(!S.role&&S.err!=='nodb')b+='<div class="note">請先在右上角選擇你的角色（行銷、業務、商品開發或主管），才能編輯自己負責的欄位。</div>';
+  $('#banner').innerHTML=b;
+}
+function render(){
+  renderStatic();banner();
+  var v=$('#view');
+  if(S.err==='nodb'){v.innerHTML='<div class="empty">目前無法連線到共用資料。</div>';return;}
+  v.innerHTML=S.view==='board'?viewBoard():S.view==='timeline'?viewTimeline():S.view==='report'?viewReport():viewSettings();
+  if(!modalBusy())renderModal();
+}
+function schedule(force){
+  if(raf)return;
+  raf=requestAnimationFrame(function(){raf=0;render();if(force)renderModalForce();});
+}
+function renderModalForce(){if(modalBusy())return;renderModal();}
+
+/* ---------- events ---------- */
+function closeModal(){S.imgMsg='';S.sel=null;S.modalMode=null;S.edit={kind:null,id:null};S.formErr='';S.kolFilter='';renderModal();}
+document.addEventListener('click',function(ev){
+  var t=ev.target.closest('[data-act]');
+  if(!t){if(ev.target.id==='modal')closeModal();return;}
+  var a=t.dataset.act,id=t.dataset.id;
+  if(a==='tab'){S.view=t.dataset.view;render();}
+  else if(a==='open'){S.sel=id;S.modalMode='product';S.edit={kind:null,id:null};S.formErr='';renderModal();}
+  else if(a==='close')closeModal();
+  else if(a==='clearImg'){setField('products',S.sel,'imageId','');S.imgMsg='';}
+  else if(a==='newProduct'){S.modalMode='new';S.formErr='';renderModal();}
+  else if(a==='saveNewProduct')saveNewProduct();
+  else if(a==='new'){S.edit={kind:t.dataset.kind,id:null};S.formErr='';renderModal();}
+  else if(a==='edit'){S.edit={kind:t.dataset.kind,id:id};S.formErr='';renderModal();}
+  else if(a==='cancel'){S.edit={kind:null,id:null};S.formErr='';renderModal();}
+  else if(a==='savePlan')savePlan();
+  else if(a==='saveKol')saveKol();
+  else if(a==='delPlan')twoClick('p'+id,function(){del('plans/'+id);});
+  else if(a==='delKol')twoClick('k'+id,function(){del('kols/'+id);});
+  else if(a==='kolFilter'){S.kolFilter=t.dataset.v;renderModal();}
+  else if(a==='addSale')addSale();
+  else if(a==='delSale')twoClick('s'+id,function(){del('sales/'+id);});
+  else if(a==='tlPrev'||a==='tlNext'){S.tlStart=addDays(S.tlStart||monday(addDays(today(),-42)),a==='tlNext'?28:-28);render();}
+  else if(a==='tlToday'){S.tlStart=null;render();}
+  else if(a==='repMode'){S.rep.mode=t.dataset.mode;render();}
+  else if(a==='repPrev'||a==='repNext'){
+    var dir=a==='repNext'?1:-1,an=S.rep.anchor||today();
+    if(S.rep.mode==='week')S.rep.anchor=addDays(an,7*dir);
+    else{var d=parse(an);S.rep.anchor=iso(new Date(d.getFullYear(),d.getMonth()+dir,1));}
+    render();
+  }
+  else if(a==='repToday'){S.rep.anchor=null;render();}
+  else if(a==='addItem'){var k=t.dataset.key,inp=$('#add-'+k),v=inp.value.trim();if(!v||list(k).indexOf(v)>=0)return;var pt={};pt[k]=list(k).concat([v]);saveSettings(pt);}
+  else if(a==='delItem'){var k2=t.dataset.key,nm=t.dataset.name,pt2={};pt2[k2]=list(k2).filter(function(x){return x!==nm;});saveSettings(pt2);}
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#modal').hidden)closeModal();});
+$('#search').addEventListener('input',function(e){S.q=e.target.value;render();});
+$('#role').addEventListener('change',function(e){
+  S.role=e.target.value||null;
+  try{localStorage.setItem('kinyo-role',S.role||'');}catch(x){}
+  if(db&&S.uid)db.doc('data/users/'+S.uid+'/profile').set({role:S.role||''}).catch(function(){});
+  render();renderModal();
+});
+document.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.id==='tlModel'){S.tlModel=t.value;render();return;}
+  if(t.id==='tlKol'){S.tlKol=t.checked;render();return;}
+  if(t.id==='imgUp'){
+    var f=t.files&&t.files[0],pid=S.sel;if(!f||!assetsNS||!pid)return;
+    if(f.size>20*1024*1024){S.imgMsg='檔案超過 20MB，請先縮小。';renderModal();return;}
+    S.imgMsg='上傳中…';renderModal();
+    assetsNS.upload(f).then(function(r){S.imgMsg='';setField('products',pid,'imageId',r.id);}).catch(function(err){S.imgMsg=(err&&err.code==='unsupported_type')?'只支援 PNG、JPG、WebP 圖片。':(err&&err.code==='too_large')?'檔案太大，請縮小到 20MB 以下。':'上傳失敗，請稍後再試。';renderModal();});
+    return;
+  }
+  var col=t.dataset&&t.dataset.col,field=t.dataset&&t.dataset.field;
+  if(!col||!field)return;
+  var v=t.type==='checkbox'?t.checked:t.value.trim();
+  if(col==='products'&&S.sel)setField('products',S.sel,field,v);
+  else if(col==='plans'&&t.dataset.id)setField('plans',t.dataset.id,field,v);
+});
+function saveNewProduct(){
+  var model=$('#np-model').value.trim();S.formFor='new';
+  if(!model){S.formErr='請輸入型號。';renderModal();return;}
+  var id=model.replace(/[^A-Za-z0-9_\-]/g,'')||newId('p');
+  if(S.products[id]){S.formErr='這個型號已經存在。';renderModal();return;}
+  S.formErr='';
+  put('products/'+id,meta({model:model,name:$('#np-name').value.trim(),period:$('#np-period').value.trim(),sampleStatus:'未排',bulkStatus:'未排'})).then(function(){S.modalMode='product';S.sel=id;renderModal();});
+}
+function g(i){var el=$('#'+i);return el?el.value.trim():'';}
+function savePlan(){
+  S.formFor='plan';
+  var name=g('pf-name'),s=g('pf-start'),e=g('pf-end');
+  if(!name){S.formErr='請輸入通路或項目名稱。';renderModal();return;}
+  if(s&&e&&e<s){S.formErr='結束日期不能早於開始日期。';renderModal();return;}
+  var cur=S.edit.id?S.plans[S.edit.id]:null,id=S.edit.id||newId('p');
+  var o=cur?copy(cur):{pid:S.sel,salesUpdate:'',order:plansOf(S.sel).length+1};
+  o.cat=g('pf-cat');o.name=name;o.contact=g('pf-contact');o.stage=g('pf-stage');o.confirm=g('pf-confirm');o.start=s;o.end=e;o.mktNote=$('#pf-mkt').value;
+  S.formErr='';
+  put('plans/'+id,meta(o)).then(function(){S.edit={kind:null,id:null};renderModal();});
+}
+function saveKol(){
+  S.formFor='kol';
+  var name=g('kf-name'),s=g('kf-start'),e=g('kf-end');
+  if(!name){S.formErr='請輸入 KOL 或團媽名稱。';renderModal();return;}
+  if(s&&e&&e<s){S.formErr='結束時間不能早於開團時間。';renderModal();return;}
+  var cur=S.edit.id?S.kols[S.edit.id]:null,id=S.edit.id||newId('k');
+  var o=cur?copy(cur):{pid:S.sel,mktNote:''};
+  o.rep=g('kf-rep');o.name=name;o.type=g('kf-type');o.platform=g('kf-platform');o.status=g('kf-status');o.sampleDate=g('kf-sample');o.start=s;o.end=e;
+  o.qty=num(g('kf-qty'));o.price=num(g('kf-price'));o.groupPrice=num(g('kf-gprice'));o.audience=g('kf-aud');o.link=g('kf-link');o.feedback=$('#kf-fb').value;
+  o.client=g('kf-client');o.subModel=g('kf-sub');
+  if(can('kolMkt')){o.mktNote=$('#kf-mkt').value;o.mktOwner=g('kf-mo');}
+  S.formErr='';
+  put('kols/'+id,meta(o)).then(function(){S.edit={kind:null,id:null};renderModal();});
+}
+function addSale(){
+  S.formFor='sale';
+  var plan=g('sf-plan'),date=g('sf-date'),qty=num(g('sf-qty')),amt=num(g('sf-amt'));
+  if(!date){S.formErr='請輸入日期。';renderModal();return;}
+  if(qty==null&&amt==null){S.formErr='請輸入數量或金額。';renderModal();return;}
+  S.formErr='';
+  put('sales/'+newId('s'),meta({pid:S.sel,plan:plan,date:date,qty:qty,amount:amt,note:g('sf-note')})).then(function(){renderModal();});
+}
+
+/* ---------- data ---------- */
+function mapSnap(snap){var o={};snap.docs.forEach(function(d){var src=d.data()||{},x={};Object.keys(src).forEach(function(k){x[k]=src[k];});x.id=d.id;o[d.id]=x;});return o;}
+function subscribe(){
+  ['products','plans','kols','sales'].forEach(function(name){
+    db.collection(name).onSnapshot(function(snap){
+      S[name]=mapSnap(snap);S.loaded[name]=true;
+      if(name==='products'){clearTimeout(timer);if(S.err==='slow')S.err='';}
+      schedule();
+    },function(e){S.err=e&&e.code==='revoked'?'nodb':'slow';schedule();});
+  });
+  db.doc('settings/lists').onSnapshot(function(snap){
+    var d=snap.exists?snap.data():{},o={};Object.keys(d||{}).forEach(function(k){o[k]=d[k];});
+    S.settings=o;S.loaded.settings=true;schedule();
+  },function(){});
+  timer=setTimeout(function(){if(!S.loaded.products){S.err='slow';schedule();}},10000);
+}
+async function init(){
+  renderStatic();
+  try{if(window.claude&&window.claude.use)user=await window.claude.use('user');}catch(e){}
+  try{if(window.claude&&window.claude.use)db=await window.claude.use('db');}catch(e){}
+  if(!db){S.err='nodb';render();return;}
+  try{Promise.resolve(window.claude.use('assets')).then(function(a){assetsNS=a||null;schedule();}).catch(function(){});}catch(e){}
+  try{S.uid=user&&user.id?await user.id():null;}catch(e){}
+  try{if(user&&user.can){S.canWrite=user.can('data.write')!==false;}}catch(e){}
+  var role=null;
+  try{role=localStorage.getItem('kinyo-role')||null;}catch(e){}
+  if(S.uid){try{var ps=await db.doc('data/users/'+S.uid+'/profile').get();if(ps.exists&&ps.data().role)role=ps.data().role;}catch(e){}}
+  S.role=ROLES.indexOf(role)>=0?role:null;
+  subscribe();render();
+}
+init();
+})();
+</script>
+</body>
+</html>

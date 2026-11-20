@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KINYO 新品通路看板 (Copy)</title>
+<style>
+:root{--bg:#ffffff;--logo:#231815}
+@media (prefers-color-scheme:dark){:root{--bg:#111111;--logo:#f5f5f5}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg)}
+.title{margin:-20px 0 0;font-size:clamp(20px,3.2vw,28px);font-weight:500;letter-spacing:.3em;text-indent:.3em;color:var(--logo)}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;padding:24px;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+.enter{display:inline-block;padding:13px 36px;border:1.5px solid var(--logo);border-radius:999px;color:var(--logo);text-decoration:none;font-size:16px;font-weight:500;letter-spacing:.08em;transition:background .2s,color .2s}
+.enter:hover,.enter:focus-visible{background:var(--logo);color:var(--bg);outline:none}
+.logo{display:block;width:min(300px,56vw);height:auto;fill:var(--logo)}
+@media (prefers-reduced-motion:no-preference){.logo{animation:in .8s ease-out both}}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">KINYO</h1>
+<svg class="logo" role="img" aria-label="KINYO" viewBox="60 400 880 200" xmlns="http://www.w3.org/2000/svg">
+<path d="M 282.516 589.863 L 325.840 589.863 L 325.840 409.488 L 282.516 409.488 Z"/>
+<path d="M 180.430 409.488 L 112.656 477.332 L 112.656 409.488 L 69.320 409.488 L 69.320 589.863 L 112.656 589.863 L 112.656 538.637 L 241.683 409.488 Z"/>
+<path d="M 147.652 524.074 L 202.848 589.867 L 259.410 589.867 L 178.395 493.300 Z"/>
+<path d="M 647.238 464.449 L 608.770 409.512 L 555.867 409.512 L 620.789 502.223 Z"/>
+<path d="M 703.359 409.512 L 577.062 589.887 L 629.957 589.887 L 756.254 409.512 Z"/>
+<path d="M 839.801 546.855 C 813.934 546.855 792.953 525.875 792.953 500 C 792.953 474.129 813.934 453.145 839.801 453.145 C 865.688 453.145 886.656 474.129 886.656 500 C 886.656 525.875 865.688 546.855 839.801 546.855 M 839.801 409.809 C 789.992 409.809 749.617 450.188 749.617 500 C 749.617 549.816 789.992 590.195 839.801 590.195 C 889.613 590.195 930 549.816 930 500 C 930 450.188 889.613 409.809 839.801 409.809"/>
+<path d="M 455.805 409.488 L 365.613 409.488 L 365.613 589.863 L 408.945 589.863 L 408.945 452.820 L 455.805 452.820 L 455.805 452.828 C 481.480 452.828 502.332 473.484 502.648 499.094 L 502.664 499.094 L 502.664 589.863 L 545.996 589.863 L 545.996 502.223 L 545.949 502.223 C 545.984 501.378 545.996 500.531 545.996 499.680 C 545.996 449.863 505.621 409.488 455.805 409.488"/>
+</svg>
+<p class="title">通路網紅追蹤表</p>
+<a class="enter" href="board.html">進入看板</a>
+</body>
+</html>
