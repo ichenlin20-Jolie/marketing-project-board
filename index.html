@@ -3,11 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KINYO 新品通路看板</title>
+<title>KINYO 通路網紅追蹤表</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
 /* Layout idea: top bar with tabs and role switcher; board of one card per model; detail panel split into three role-owned sections. */
 :root{
@@ -203,19 +202,49 @@ tr.dim td{opacity:.55}
 .imgbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .imgbox .pimg{margin:0;width:160px;height:160px;border:1px solid var(--line);border-radius:10px}
 .imgbox .pimg img{max-height:144px}
+
+#home{--hbg:#ffffff;--logo:#231815;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;padding:24px;background:var(--hbg);color:var(--logo)}
+@media (prefers-color-scheme:dark){#home{--hbg:#111111;--logo:#f5f5f5}}
+#home[hidden],#app[hidden]{display:none}
+#home .logo{display:block;width:min(300px,56vw);height:auto;fill:var(--logo)}
+#home .title{margin:-20px 0 0;font-size:clamp(20px,3.2vw,28px);font-weight:500;letter-spacing:.3em;text-indent:.3em}
+#home .enter{display:inline-block;padding:13px 36px;border:1.5px solid var(--logo);border-radius:999px;background:transparent;color:var(--logo);font-size:16px;font-weight:500;letter-spacing:.08em;transition:background .2s,color .2s}
+#home .enter:hover,#home .enter:focus-visible{background:var(--logo);color:var(--hbg);outline:none}
+.brand{cursor:pointer}
+@media (prefers-reduced-motion:no-preference){#home .logo{animation:hin .8s ease-out both}}
+@keyframes hin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 </style>
+<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
+<div id="home">
+<svg class="logo" role="img" aria-label="KINYO" viewBox="60 400 880 200" xmlns="http://www.w3.org/2000/svg">
+<path d="M 282.516 589.863 L 325.840 589.863 L 325.840 409.488 L 282.516 409.488 Z"/>
+<path d="M 180.430 409.488 L 112.656 477.332 L 112.656 409.488 L 69.320 409.488 L 69.320 589.863 L 112.656 589.863 L 112.656 538.637 L 241.683 409.488 Z"/>
+<path d="M 147.652 524.074 L 202.848 589.867 L 259.410 589.867 L 178.395 493.300 Z"/>
+<path d="M 647.238 464.449 L 608.770 409.512 L 555.867 409.512 L 620.789 502.223 Z"/>
+<path d="M 703.359 409.512 L 577.062 589.887 L 629.957 589.887 L 756.254 409.512 Z"/>
+<path d="M 839.801 546.855 C 813.934 546.855 792.953 525.875 792.953 500 C 792.953 474.129 813.934 453.145 839.801 453.145 C 865.688 453.145 886.656 474.129 886.656 500 C 886.656 525.875 865.688 546.855 839.801 546.855 M 839.801 409.809 C 789.992 409.809 749.617 450.188 749.617 500 C 749.617 549.816 789.992 590.195 839.801 590.195 C 889.613 590.195 930 549.816 930 500 C 930 450.188 889.613 409.809 839.801 409.809"/>
+<path d="M 455.805 409.488 L 365.613 409.488 L 365.613 589.863 L 408.945 589.863 L 408.945 452.820 L 455.805 452.820 L 455.805 452.828 C 481.480 452.828 502.332 473.484 502.648 499.094 L 502.664 499.094 L 502.664 589.863 L 545.996 589.863 L 545.996 502.223 L 545.949 502.223 C 545.984 501.378 545.996 500.531 545.996 499.680 C 545.996 449.863 505.621 409.488 455.805 409.488"/>
+</svg>
+<p class="title">通路網紅追蹤表</p>
+<button class="enter" id="enter" type="button">進入看板</button>
+</div>
+<div id="app" hidden>
 <header class="top">
   <div class="brand">KINYO<span>新品通路看板</span></div>
   <nav id="tabs" aria-label="主要頁面"></nav>
   <div class="grow"></div>
   <input id="search" type="search" placeholder="搜尋型號、品名" aria-label="搜尋型號或品名">
-  <div class="who"><label for="role">我的角色</label><select id="role"></select></div>
+  <div class="who"><label for="role">我的角色</label><select id="role"></select><button class="btn small" id="logout" data-act="logout" hidden>登出</button></div>
 </header>
 <div id="banner"></div>
 <main><div id="view"><div class="empty">載入中…</div></div></main>
 <div id="modal" class="overlay" hidden></div>
+</div>
 
 <script>
 (function(){
@@ -237,11 +266,11 @@ var BULK_ST=['未排','生產中','已出貨','已到貨'];
 var CAT_COLOR={'實體':'#3d7fd1','網紅':'#e07a2e','電商':'#2f9e62','團購':'#8b5bd1','直播':'#a24fc2','贈品':'#7d8a97','平台':'#2a9db0','其他':'#7d8a97'};
 var VIEWS=[['board','型號看板'],['timeline','時間軸'],['report','週報／月報'],['settings','設定']];
 
-var S={products:{},plans:{},kols:{},sales:{},settings:{},backups:{},restore:null,bkMsg:'',bkAutoDone:false,
+var S={products:{},plans:{},kols:{},sales:{},settings:{},
   role:null,uid:null,canWrite:true,view:'board',q:'',sel:null,modalMode:null,
   edit:{kind:null,id:null},formErr:'',formFor:'',loaded:{},err:'',names:{},asked:{},
   tlStart:null,tlModel:'',tlKol:true,kolFilter:'',rep:{mode:'week',anchor:null},confirm:{}};
-var db=null,user=null,timer=null,raf=0,assetsNS=null,downloadsNS=null;
+var db=null,user=null,timer=null,raf=0,assetsNS=null,auth=null,fs=null,started=false;
 
 /* ---------- helpers ---------- */
 function $(s,r){return (r||document).querySelector(s);}
@@ -267,7 +296,7 @@ function link(u,t){return /^https?:\/\//.test(u||'')?'<a href="'+esc(u)+'" targe
 function opts(arr,cur){var a=arr.slice();if(cur&&a.indexOf(cur)<0)a.push(cur);return a.map(function(x){return '<option'+(x===cur?' selected':'')+'>'+esc(x)+'</option>';}).join('');}
 function stamp(o){
   if(!o||!o.at)return '';
-  var n=o.by&&S.names[o.by]?S.names[o.by]:'';var d=new Date(o.at);
+  var n=o.byName||(o.by&&S.names[o.by]?S.names[o.by]:'');var d=new Date(o.at);
   return '最後更新 '+(n?esc(n)+' · ':'')+(d.getMonth()+1)+'/'+d.getDate();
 }
 function wantNames(ids){
@@ -280,7 +309,7 @@ function wantNames(ids){
     if(got)schedule();
   }).catch(function(){});
 }
-function meta(o){o.by=S.uid||null;o.at=Date.now();return o;}
+function meta(o){o.by=S.uid||null;if(S.userName)o.byName=S.userName;o.at=Date.now();return o;}
 function num(v){return v===''||v==null?null:(Number(v)||0);}
 function copy(o){var x={};Object.keys(o||{}).forEach(function(k){if(k!=='id')x[k]=o[k];});return x;}
 function newId(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -315,8 +344,8 @@ function planChip(x){
 
 /* ---------- writes ---------- */
 function failWrite(e){
-  if(e&&e.code==='invalid_argument'){S.canWrite=false;S.err='readonly';}
-  else if(e&&e.code==='quota_exceeded')S.err='quota';
+  if(e&&(e.code==='invalid_argument'||e.code==='permission-denied')){S.canWrite=false;S.err='readonly';}
+  else if(e&&(e.code==='quota_exceeded'||e.code==='resource-exhausted'))S.err='quota';
   else S.err='writefail';
   render();
 }
@@ -355,7 +384,7 @@ function tiles(){
     '<div class="tile'+(od?' alert':'')+'"><b>'+od+'</b><span>逾期未完成的樣品／大貨</span></div></div>';
 }
 var GROUPS=[['實體',['實體']],['網紅',['網紅']],['平台',['平台','電商']],['團購',['團購','直播']]];
-function imgSrc(p){return p&&p.imageId&&/^[A-Za-z0-9_-]+$/.test(p.imageId)?'/_blob/'+p.imageId:'';}
+function imgSrc(p){return p&&typeof p.imageId==='string'&&p.imageId.indexOf('data:image/')===0?p.imageId:'';}
 function card(p){
   var ps=plansOf(p.id),ks=kolsOf(p.id);
   var live=ps.filter(function(x){return timing(x.start,x.end)==='live';});
@@ -488,9 +517,39 @@ function viewSettings(){
   var h='<div class="toolbar"><h2>設定與分工</h2></div><div class="roles">'+
     ROLES.map(function(r){return '<div class="rolecard" style="--c:'+(rc[r]?'var(--r-'+rc[r]+')':'var(--line)')+'"><b>'+r+'</b>'+esc(ROLE_NOTE[r])+'</div>';}).join('')+'</div>'+
     '<p class="hint" style="margin:-6px 0 18px">角色是畫面上的分工：選了角色，才能改該角色負責的欄位，其他欄位會變成唯讀。這不是帳號權限，每筆資料都會記錄最後更新的人。下列選單清單由行銷維護。</p>';
-  h+=viewBackup();
   h+=chipEditor('cats','通路分類','例如：實體')+chipEditor('stages','通路階段','例如：提報')+chipEditor('reps','業務窗口（網紅／團購）','例如：馨鄞')+chipEditor('platforms','網紅平台','例如：IG')+chipEditor('kolTypes','網紅／團購類型','例如：團購');
+  h+=dataTools();
   return h;
+}
+
+
+function dataTools(){
+  var ok=can('settings'),dis=ok?'':' disabled';
+  var ta='width:100%;height:120px;font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 8px';
+  var h='<div class="rep-sec"><h2>資料匯出／匯入</h2><p class="hint" style="margin:0 0 8px">用來備份，或把資料搬到另一個版本。匯入會依代號覆蓋同代號的資料，其他資料不會被刪除。匯入需要「行銷」角色。</p>'+
+    '<div style="margin-bottom:8px"><button class="btn" data-act="exportData">產生匯出資料</button></div>';
+  if(S.exportText!=null)h+='<textarea id="exp-text" readonly style="'+ta+'">'+esc(S.exportText)+'</textarea><div style="margin:6px 0 12px"><button class="btn small" data-act="copyExport">複製</button> <span class="stamp">'+esc(S.copyMsg||'')+'</span></div>';
+  h+='<textarea id="imp-text" placeholder="貼上匯出的 JSON" style="'+ta+'"'+dis+'>'+esc(S.impText||'')+'</textarea><div style="margin-top:6px"><button class="btn primary" data-act="importData"'+dis+'>匯入</button> <span class="stamp">'+esc(S.impMsg||'')+'</span></div></div>';
+  return h;
+}
+function exportAll(){
+  var o={products:{},plans:{},kols:{},sales:{},settings:{lists:copy(S.settings)}};
+  ['products','plans','kols','sales'].forEach(function(c){Object.keys(S[c]).forEach(function(id){o[c][id]=copy(S[c][id]);});});
+  return JSON.stringify(o);
+}
+function importAll(){
+  var d;try{d=JSON.parse(S.impText||'');}catch(e){S.impMsg='格式不正確，請貼上完整的匯出內容。';render();return;}
+  if(!d||typeof d!=='object'||!d.products){S.impMsg='找不到資料，請確認貼的是匯出內容。';render();return;}
+  var jobs=[];
+  ['products','plans','kols','sales'].forEach(function(c){var m=d[c]||{};Object.keys(m).forEach(function(id){if(/^[^\/]+$/.test(id))jobs.push([c+'/'+id,m[id]]);});});
+  if(d.settings&&d.settings.lists)jobs.push(['settings/lists',d.settings.lists]);
+  S.impMsg='匯入中… 0 / '+jobs.length;render();
+  var done=0;
+  (function next(){
+    var chunk=jobs.splice(0,40);
+    if(!chunk.length){S.impMsg='完成：已匯入 '+done+' 筆。';S.impText='';render();return;}
+    Promise.all(chunk.map(function(j){return put(j[0],j[1]).then(function(){done++;});})).then(function(){S.impMsg='匯入中… '+done;render();next();});
+  })();
 }
 
 /* ---------- modal ---------- */
@@ -633,7 +692,6 @@ function modalNew(){
 function renderModal(){
   var m=$('#modal');
   if(S.modalMode==='new'){m.hidden=false;m.innerHTML=modalNew();return;}
-  if(S.modalMode==='restore'&&S.restore){m.hidden=false;m.innerHTML=modalRestore();return;}
   var p=S.sel&&S.products[S.sel];
   if(!p){m.hidden=true;m.innerHTML='';S.sel=null;return;}
   wantNames([p.by]);
@@ -652,22 +710,25 @@ function renderStatic(){
   var r=$('#role');
   if(!r.dataset.built){r.innerHTML='<option value="">請選擇</option>'+ROLES.map(function(x){return '<option>'+x+'</option>';}).join('');r.dataset.built='1';}
   r.value=S.role||'';
+  $('#logout').hidden=!S.uid;
   $('#search').style.display=(S.view==='board'||S.view==='timeline')?'':'none';
 }
 function banner(){
   var b='';
-  if(S.err==='nodb')b+='<div class="note">需要登入 Claude，並由頁面擁有者分享給你，才能讀寫共用資料。</div>';
+  if(S.err==='nodb')b+='<div class="note">尚未設定資料庫。請依 README 填寫 firebase-config.js。</div>';
   if(S.err==='slow')b+='<div class="note">資料連線較慢，畫面可能不是最新內容。</div>';
   if(S.err==='readonly'||!S.canWrite)b+='<div class="note">你目前是唯讀身分，無法儲存。請頁面擁有者把你設為「Contributor」。</div>';
   if(S.err==='writefail')b+='<div class="note">儲存失敗，請稍後再試。</div>';
   if(S.err==='quota')b+='<div class="note">資料筆數已達上限，請刪除不需要的紀錄後再新增。</div>';
-  if(!S.role&&S.err!=='nodb')b+='<div class="note">請先在右上角選擇你的角色（行銷、業務、商品開發或主管），才能編輯自己負責的欄位。</div>';
+  if(!S.role&&S.err!=='nodb'&&S.err!=='login'&&S.err!=='denied')b+='<div class="note">請先在右上角選擇你的角色（行銷、業務、商品開發或主管），才能編輯自己負責的欄位。</div>';
   $('#banner').innerHTML=b;
 }
 function render(){
   renderStatic();banner();
   var v=$('#view');
-  if(S.err==='nodb'){v.innerHTML='<div class="empty">目前無法連線到共用資料。</div>';return;}
+  if(S.err==='login'){v.innerHTML='<div class="empty"><p style="margin:0 0 14px;color:var(--ink);font-size:16px">請使用公司 Google 帳號登入</p><button class="btn primary" data-act="login">使用 Google 登入</button>'+(S.loginErr?'<p class="err">'+esc(S.loginErr)+'</p>':'')+'</div>';return;}
+  if(S.err==='denied'){v.innerHTML='<div class="empty"><p style="margin:0 0 6px;color:var(--ink);font-size:16px">這個帳號沒有使用權限</p><p style="margin:0 0 14px">目前登入：'+esc(S.email||'')+'。請改用公司帳號，或請管理員開通。</p><button class="btn" data-act="logout">登出並換帳號</button></div>';return;}
+  if(S.err==='nodb'){v.innerHTML='<div class="empty">目前無法連線到資料庫。</div>';return;}
   v.innerHTML=S.view==='board'?viewBoard():S.view==='timeline'?viewTimeline():S.view==='report'?viewReport():viewSettings();
   if(!modalBusy())renderModal();
 }
@@ -677,246 +738,15 @@ function schedule(force){
 }
 function renderModalForce(){if(modalBusy())return;renderModal();}
 
-/* ---------- backup & restore ---------- */
-var BK_FIELDS={
-  products:[['model','型號'],['name','品名'],['period','推廣期間'],['mktOwner','行銷負責人'],['sampleStatus','樣品狀態'],['sampleDate','樣品日期'],['sampleNote','樣品說明'],['artStatus','圖檔狀態'],['bulkStatus','大貨狀態'],['bulkPlan','大貨預計到倉日'],['bulkActual','大貨實際到倉日'],['bulkNote','大貨說明'],['devNote','其他備註'],['assetLink','素材路徑'],['deckLink','產品簡報'],['imageId','產品圖編號']],
-  plans:[['pid','型號ID'],['order','排序'],['cat','分類'],['name','通路／項目'],['contact','窗口'],['stage','階段／內容'],['confirm','確定／預估'],['start','開始日期'],['end','結束日期'],['mktNote','行銷規劃／備註'],['salesUpdate','業務更新']],
-  kols:[['pid','型號ID'],['rep','業務窗口'],['client','客戶名稱'],['name','KOL／團媽名稱'],['subModel','產品型號'],['type','類型'],['platform','主要平台'],['audience','受眾屬性'],['status','狀態'],['sampleDate','寄樣日期'],['start','開團時間'],['end','結束時間'],['link','貼文／追蹤連結'],['qty','銷售量'],['price','售價'],['groupPrice','團購價'],['feedback','備註／客訴反饋'],['mktNote','行銷備註／建議'],['mktOwner','行銷窗口']],
-  sales:[['pid','型號ID'],['plan','通路ID'],['date','日期'],['qty','數量'],['amount','金額'],['note','備註']]
-};
-var BK_NUM={order:1,qty:1,price:1,groupPrice:1,amount:1};
-var BK_DATE={sampleDate:1,bulkPlan:1,bulkActual:1,start:1,end:1,date:1};
-var BK_SHEET={products:'型號',plans:'通路規劃',kols:'網紅團購',sales:'銷售回報'};
-var BK_PREFIX={products:'p',plans:'pl',kols:'k',sales:'s'};
-var BK_SET=[['cats','通路分類'],['stages','通路階段'],['reps','業務窗口'],['platforms','網紅平台'],['kolTypes','網紅類型']];
-var BK_COLS=['products','plans','kols','sales'];
-var BK_ID='編號（勿改）';
-var BK_KIND={auto:'每週自動',manual:'手動',prerestore:'還原前自動'};
-
-function bkDate(v){
-  if(v==null||v==='')return '';
-  if(v instanceof Date&&!isNaN(v))return iso(v);
-  if(typeof v==='number'&&v>20000&&v<80000){var d=new Date(Math.round((v-25569)*864e5));return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate());}
-  var m=String(v).trim().match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
-  return m?m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]):'';
-}
-function bkCanon(col,o){
-  var x={};o=o||{};
-  BK_FIELDS[col].forEach(function(f){
-    var k=f[0],v=o[k];
-    if(BK_NUM[k]){if(v===''||v==null)x[k]=null;else{var n=Number(String(v).replace(/,/g,''));x[k]=isNaN(n)?null:n;}}
-    else if(BK_DATE[k])x[k]=bkDate(v);
-    else x[k]=v==null?'':String(v).trim();
-  });
-  return x;
-}
-function bkSettings(o){var x={};BK_SET.forEach(function(s){var a=(o&&o[s[0]])||[];x[s[0]]=a.map(function(v){return String(v).trim();}).filter(Boolean);});return x;}
-function bkCurrent(){
-  var d={};
-  BK_COLS.forEach(function(c){d[c]={};Object.keys(S[c]).forEach(function(id){d[c][id]=bkCanon(c,S[c][id]);});});
-  d.settings=bkSettings({cats:list('cats'),stages:list('stages'),reps:list('reps'),platforms:list('platforms'),kolTypes:list('kolTypes')});
-  return d;
-}
-function bkCounts(d){return {products:Object.keys(d.products).length,plans:Object.keys(d.plans).length,kols:Object.keys(d.kols).length,sales:Object.keys(d.sales).length};}
-
-/* --- Excel export --- */
-function bkWorkbook(d,whenLabel){
-  var X=window.XLSX,wb=X.utils.book_new(),c=bkCounts(d);
-  var info=[['KINYO 新品通路看板 備份'],['備份時間',whenLabel],['型號',c.products],['通路規劃',c.plans],['網紅團購',c.kols],['銷售回報',c.sales],[],
-    ['還原方式','在看板「設定 > 備份與還原」按「匯入 Excel 還原」，選這個檔案，確認差異後寫入。'],
-    ['注意','「編號（勿改）」欄不要修改；新增資料時編號可留空。標示（參考）或（自動）的欄位匯入時會略過。日期請用 2026-11-20 格式。']];
-  var ws0=X.utils.aoa_to_sheet(info);ws0['!cols']=[{wch:14},{wch:80}];X.utils.book_append_sheet(wb,ws0,'說明');
-  var model=function(pid){return d.products[pid]?d.products[pid].model:'';};
-  BK_COLS.forEach(function(col){
-    var f=BK_FIELDS[col],head=[BK_ID];
-    f.forEach(function(x){head.push(x[1]);if(x[0]==='pid')head.push('型號（參考）');if(x[0]==='plan')head.push('通路（參考）');});
-    if(col==='kols')head.push('淨營業額（自動）');
-    var ids=Object.keys(d[col]).sort(function(a,b){var A=d[col][a],B=d[col][b];return (model(A.pid)+'|'+String(A.order==null?'':A.order).padStart(4,'0')+A.start+a).localeCompare(model(B.pid)+'|'+String(B.order==null?'':B.order).padStart(4,'0')+B.start+b,'zh',{numeric:true});});
-    var rows=[head];
-    ids.forEach(function(id){
-      var o=d[col][id],r=[id];
-      f.forEach(function(x){var v=o[x[0]];r.push(v==null?'':v);if(x[0]==='pid')r.push(model(o.pid));if(x[0]==='plan')r.push(d.plans[o.plan]?d.plans[o.plan].name:'');});
-      if(col==='kols')r.push(kolNet(o));
-      rows.push(r);
-    });
-    var ws=X.utils.aoa_to_sheet(rows);
-    ws['!cols']=head.map(function(h){return {wch:/備註|更新|受眾|反饋|連結|說明|路徑|簡報/.test(h)?40:(h===BK_ID?22:14)};});
-    X.utils.book_append_sheet(wb,ws,BK_SHEET[col]);
-  });
-  var srow=[BK_SET.map(function(s){return s[1];})],max=0;
-  BK_SET.forEach(function(s){max=Math.max(max,d.settings[s[0]].length);});
-  for(var i=0;i<max;i++)srow.push(BK_SET.map(function(s){return d.settings[s[0]][i]||'';}));
-  var wss=X.utils.aoa_to_sheet(srow);wss['!cols']=BK_SET.map(function(){return {wch:14};});X.utils.book_append_sheet(wb,wss,'選單設定');
-  return X.write(wb,{bookType:'xlsx',type:'array'});
-}
-function bkStamp(ms){var d=new Date(ms);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
-function bkDownload(d,whenMs){
-  if(!window.XLSX){S.bkMsg='Excel 元件還沒載入完成，請稍後再按一次。';render();return;}
-  if(!downloadsNS){S.bkMsg='這個檢視無法下載檔案，請在瀏覽器或電腦上開啟看板。';render();return;}
-  var buf=bkWorkbook(d,bkStamp(whenMs)),dt=new Date(whenMs);
-  var name='KINYO通路看板備份_'+dt.getFullYear()+pad(dt.getMonth()+1)+pad(dt.getDate())+'_'+pad(dt.getHours())+pad(dt.getMinutes())+'.xlsx';
-  S.bkMsg='';
-  downloadsNS.save({filename:name,data:new Uint8Array(buf)}).then(function(){S.bkMsg='已下載 '+name+'。';render();}).catch(function(e){
-    S.bkMsg=e&&e.code==='declined'?'已取消下載。':e&&e.code==='host_unavailable'?'這個 App 無法存檔，請改用瀏覽器或電腦開啟。':'下載失敗，請稍後再試。';render();});
-}
-
-/* --- Excel / JSON import --- */
-function bkParseWorkbook(buf){
-  var X=window.XLSX,wb=X.read(buf,{type:'array',cellDates:true}),d={},errs=[];
-  BK_COLS.forEach(function(col){
-    d[col]={};
-    var ws=wb.Sheets[BK_SHEET[col]];
-    if(!ws){errs.push('找不到「'+BK_SHEET[col]+'」分頁');return;}
-    var rows=X.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
-    if(!rows.length){return;}
-    var head=rows[0].map(function(h){return String(h).trim();}),idx={},idI=head.indexOf(BK_ID);
-    if(idI<0){errs.push('「'+BK_SHEET[col]+'」分頁缺少「'+BK_ID+'」欄');return;}
-    BK_FIELDS[col].forEach(function(f){idx[f[0]]=head.indexOf(f[1]);});
-    for(var r=1;r<rows.length;r++){
-      var row=rows[r],o={},any=false;
-      BK_FIELDS[col].forEach(function(f){var i=idx[f[0]];var v=i>=0?row[i]:'';o[f[0]]=v;if(v!==''&&v!=null)any=true;});
-      if(!any)continue;
-      var id=String(row[idI]||'').trim();
-      if(!/^[A-Za-z0-9_.\-]{1,120}$/.test(id))id=col==='products'?(String(o.model||'').replace(/[^A-Za-z0-9_\-]/g,'')||newId('p')):newId(BK_PREFIX[col]);
-      d[col][id]=bkCanon(col,o);
-    }
-  });
-  var ss=wb.Sheets['選單設定'];
-  if(ss){var sr=X.utils.sheet_to_json(ss,{header:1,raw:false,defval:''}),sh=(sr[0]||[]).map(function(h){return String(h).trim();}),so={};
-    BK_SET.forEach(function(s){var i=sh.indexOf(s[1]);so[s[0]]=i<0?[]:sr.slice(1).map(function(r){return r[i];});});d.settings=bkSettings(so);}
-  else d.settings=null;
-  return {data:d,errs:errs};
-}
-function bkFromSnapshot(j){
-  if(!j||j.format!=='kinyo-board-backup'||!j.data)return null;
-  var d={};BK_COLS.forEach(function(c){d[c]={};Object.keys(j.data[c]||{}).forEach(function(id){d[c][id]=bkCanon(c,j.data[c][id]);});});
-  d.settings=j.data.settings?bkSettings(j.data.settings):null;
-  return d;
-}
-function bkDiff(cur,inc){
-  var out={cols:{},total:0,settings:false};
-  BK_COLS.forEach(function(c){
-    var a=[],u=[],x=[];
-    Object.keys(inc[c]).forEach(function(id){if(!cur[c][id])a.push(id);else if(JSON.stringify(cur[c][id])!==JSON.stringify(inc[c][id]))u.push(id);});
-    Object.keys(cur[c]).forEach(function(id){if(!inc[c][id])x.push(id);});
-    out.cols[c]={add:a,upd:u,del:x};
-  });
-  if(inc.settings&&JSON.stringify(inc.settings)!==JSON.stringify(cur.settings))out.settings=true;
-  return out;
-}
-function bkLabel(c,o){
-  if(!o)return '';
-  if(c==='products')return o.model;
-  var m=S.products[o.pid]?S.products[o.pid].model:(S.restore&&S.restore.data.products[o.pid]?S.restore.data.products[o.pid].model:o.pid);
-  if(c==='sales')return m+' '+o.date;
-  return m+'｜'+o.name;
-}
-function bkStart(data,source){
-  var cur=bkCurrent(),df=bkDiff(cur,data);
-  S.restore={data:data,cur:cur,diff:df,source:source,del:true,running:false,done:0,total:0,errors:0,finished:false};
-  S.modalMode='restore';renderModal();
-}
-function bkOpsCount(r){var n=r.diff.settings?1:0;BK_COLS.forEach(function(c){var x=r.diff.cols[c];n+=x.add.length+x.upd.length+(r.del?x.del.length:0);});return n;}
-function modalRestore(){
-  var r=S.restore,h='<div class="panel narrow" style="max-width:640px" role="dialog" aria-modal="true" aria-label="還原資料"><div class="panel-h"><div class="code" style="font-size:16px">還原資料</div>'+(r.running?'':'<button class="btn" data-act="bkCancel">關閉</button>')+'</div><div class="panel-b">';
-  h+='<p style="margin:0">來源：'+esc(r.source)+'</p>';
-  h+='<div class="tbl-wrap"><table><thead><tr><th>項目</th><th class="num">新增</th><th class="num">更新</th><th class="num">刪除</th></tr></thead><tbody>'+
-    BK_COLS.map(function(c){var x=r.diff.cols[c];return '<tr><td>'+BK_SHEET[c]+'</td><td class="num">'+x.add.length+'</td><td class="num">'+x.upd.length+'</td><td class="num">'+(r.del?x.del.length:'<span class="stamp">保留 '+x.del.length+'</span>')+'</td></tr>';}).join('')+
-    '<tr><td>選單設定</td><td colspan="3" class="num">'+(r.diff.settings?'會更新':'沒有變更')+'</td></tr></tbody></table></div>';
-  var ex=[];
-  BK_COLS.forEach(function(c){var x=r.diff.cols[c];
-    x.upd.slice(0,4).forEach(function(id){ex.push('更新：'+bkLabel(c,r.data[c][id]));});
-    x.add.slice(0,3).forEach(function(id){ex.push('新增：'+bkLabel(c,r.data[c][id]));});
-    if(r.del)x.del.slice(0,3).forEach(function(id){ex.push('刪除：'+bkLabel(c,r.cur[c][id]));});});
-  if(ex.length)h+='<div class="box"><h4>部分異動內容</h4><div class="stamp" style="white-space:pre-wrap">'+esc(ex.slice(0,12).join('\n'))+(ex.length>12?'\n…':'')+'</div></div>';
-  var n=bkOpsCount(r);
-  if(!r.running&&!r.finished){
-    h+='<label class="f check"><input type="checkbox" id="bkDel"'+(r.del?' checked':'')+'> 刪除備份裡沒有的資料（完整還原成備份當時的狀態）</label>';
-    h+='<p class="hint" style="margin:0">還原會覆蓋備份之後在網頁上的修改。'+(assetsNS?'開始前會先自動存一個「還原前」的備份點，需要時可以再還原回來。':'')+'</p>';
-    h+='<div style="display:flex;gap:8px"><button class="btn primary" data-act="bkApply"'+(n?'':' disabled')+'>'+(n?'確認還原（'+n+' 筆異動）':'沒有需要還原的差異')+'</button><button class="btn" data-act="bkCancel">取消</button></div>';
-  }else if(r.running){
-    h+='<p style="margin:0;font-weight:700">寫入中… '+r.done+' / '+r.total+'</p><p class="hint" style="margin:0">請不要關閉頁面。</p>';
-  }else{
-    h+='<p style="margin:0;font-weight:700">'+(r.errors?'完成，但有 '+r.errors+' 筆寫入失敗，請再匯入一次同一個檔案補齊。':'還原完成，共 '+r.done+' 筆異動。')+'</p><div><button class="btn primary" data-act="bkCancel">關閉</button></div>';
-  }
-  return h+'</div></div>';
-}
-function bkApply(){
-  var r=S.restore;if(!r||r.running)return;
-  var ops=[],m=meta({});
-  BK_COLS.forEach(function(c){var x=r.diff.cols[c];
-    x.add.concat(x.upd).forEach(function(id){var o={};var src=r.data[c][id];Object.keys(src).forEach(function(k){o[k]=src[k];});o.by=m.by;o.at=m.at;ops.push(function(){return db.doc(c+'/'+id).set(o);});});
-    if(r.del)x.del.forEach(function(id){ops.push(function(){return db.doc(c+'/'+id).delete();});});});
-  if(r.diff.settings){var so=copy(S.settings);Object.keys(r.data.settings).forEach(function(k){so[k]=r.data.settings[k];});so.by=m.by;so.at=m.at;ops.push(function(){return db.doc('settings/lists').set(so);});}
-  r.running=true;r.total=ops.length;r.done=0;r.errors=0;renderModal();
-  var pre=assetsNS?bkSnapshot('prerestore').catch(function(){}):Promise.resolve();
-  pre.then(function(){
-    var i=0;
-    function next(){
-      if(i>=ops.length)return Promise.resolve();
-      var op=ops[i++];
-      return op().catch(function(){return new Promise(function(res){setTimeout(res,600);}).then(op);}).catch(function(){r.errors++;}).then(function(){r.done++;if(r.done%5===0||r.done===r.total)renderModal();return next();});
-    }
-    return Promise.all([next(),next(),next()]);
-  }).then(function(){r.running=false;r.finished=true;renderModal();render();});
-}
-
-/* --- snapshots stored in the artifact --- */
-function bkSnapshot(kind){
-  if(!assetsNS||!db)return Promise.reject(new Error('no assets'));
-  var d=bkCurrent(),now=Date.now();
-  var body=JSON.stringify({format:'kinyo-board-backup',version:1,at:now,data:d});
-  return assetsNS.upload(new Blob([body],{type:'application/json'}),{type:'application/json'}).then(function(res){
-    return db.doc('backups/'+newId('b')).set({assetId:res.id,at:now,by:S.uid||null,kind:kind,counts:bkCounts(d)});
-  });
-}
-function bkFetch(b){
-  return fetch('/_blob/'+b.assetId).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.json();}).then(function(j){var d=bkFromSnapshot(j);if(!d)throw new Error('format');return d;});
-}
-function bkAutoCheck(){
-  if(S.bkAutoDone||!assetsNS||!S.canWrite||!S.uid)return;
-  if(!['products','plans','kols','sales','settings','backups'].every(function(k){return S.loaded[k];}))return;
-  if(!Object.keys(S.products).length)return;
-  S.bkAutoDone=true;
-  var last=vals(S.backups).reduce(function(a,b){return Math.max(a,b.at||0);},0);
-  if(Date.now()-last<7*864e5)return;
-  bkSnapshot('auto').catch(function(){});
-}
-function viewBackup(){
-  var ok=can('settings');
-  var bs=vals(S.backups).sort(function(a,b){return (b.at||0)-(a.at||0);});
-  var last=bs[0];
-  wantNames(bs.slice(0,12).map(function(b){return b.by;}));
-  var h='<div class="rep-sec"><h2>備份與還原</h2>'+
-    '<p class="hint" style="margin:4px 0 10px">看板每週會自動存一個備份點（有人打開看板時檢查）。隨時可以下載 Excel 存到自己的電腦或 Google Drive；網頁資料有問題時，用備份點或 Excel 還原。還原只開放「行銷」角色。'+(last?' 最近一次備份：'+esc(bkStamp(last.at))+'。':'')+'</p>'+
-    '<div class="toolbar"><button class="btn primary" data-act="bkDownloadNow">下載目前資料 Excel</button>'+
-    '<button class="btn" data-act="bkSnapNow"'+(assetsNS&&S.canWrite?'':' disabled title="你目前的權限無法建立備份點"')+'>立即建立備份點</button>'+
-    '<label class="btn'+(ok?'':' " aria-disabled="true" style="opacity:.45;cursor:not-allowed')+'">匯入 Excel 還原<input type="file" id="bkFile" accept=".xlsx,.json" hidden'+(ok?'':' disabled')+'></label></div>'+
-    (S.bkMsg?'<p class="hint">'+esc(S.bkMsg)+'</p>':'');
-  if(bs.length){
-    h+='<div class="tbl-wrap"><table><thead><tr><th>備份時間</th><th>類型</th><th>建立者</th><th class="num">型號／通路／網紅</th><th></th></tr></thead><tbody>'+
-      bs.slice(0,20).map(function(b){var c=b.counts||{};return '<tr><td>'+esc(bkStamp(b.at))+'</td><td>'+esc(BK_KIND[b.kind]||b.kind||'')+'</td><td>'+esc(b.by&&S.names[b.by]?S.names[b.by]:'')+'</td><td class="num">'+(c.products||0)+' / '+(c.plans||0)+' / '+(c.kols||0)+'</td>'+
-        '<td><div class="rowact"><button class="btn small" data-act="bkDlSnap" data-id="'+esc(b.id)+'">下載 Excel</button><button class="btn small" data-act="bkRestoreSnap" data-id="'+esc(b.id)+'"'+(ok?'':' disabled')+'>還原</button></div></td></tr>';}).join('')+
-      '</tbody></table></div>'+(bs.length>20?'<p class="hint">只列出最近 20 個備份點。</p>':'');
-  }else h+='<div class="empty">還沒有備份點。</div>';
-  return h+'</div>';
-}
-
 /* ---------- events ---------- */
-function closeModal(){if(S.restore&&S.restore.running)return;S.restore=null;S.imgMsg='';S.sel=null;S.modalMode=null;S.edit={kind:null,id:null};S.formErr='';S.kolFilter='';renderModal();}
+function closeModal(){S.imgMsg='';S.sel=null;S.modalMode=null;S.edit={kind:null,id:null};S.formErr='';S.kolFilter='';renderModal();}
 document.addEventListener('click',function(ev){
   var t=ev.target.closest('[data-act]');
-  if(!t){if(ev.target.id==='modal'&&S.modalMode!=='restore')closeModal();return;}
+  if(!t){if(ev.target.id==='modal')closeModal();return;}
   var a=t.dataset.act,id=t.dataset.id;
   if(a==='tab'){S.view=t.dataset.view;render();}
   else if(a==='open'){S.sel=id;S.modalMode='product';S.edit={kind:null,id:null};S.formErr='';renderModal();}
   else if(a==='close')closeModal();
-  else if(a==='bkDownloadNow'){bkDownload(bkCurrent(),Date.now());}
-  else if(a==='bkSnapNow'){S.bkMsg='建立中…';render();bkSnapshot('manual').then(function(){S.bkMsg='已建立備份點。';render();}).catch(function(){S.bkMsg='建立備份點失敗，請稍後再試。';render();});}
-  else if(a==='bkDlSnap'||a==='bkRestoreSnap'){var b=S.backups[id];if(!b)return;S.bkMsg='讀取備份中…';render();
-    bkFetch(b).then(function(d){S.bkMsg='';if(a==='bkDlSnap'){bkDownload(d,b.at);}else{bkStart(d,'備份點 '+bkStamp(b.at));render();}}).catch(function(){S.bkMsg='讀取備份失敗，這個備份點可能已損毀，請改用其他備份。';render();});}
-  else if(a==='bkApply')bkApply();
-  else if(a==='bkCancel'){S.restore=null;S.modalMode=null;renderModal();}
   else if(a==='clearImg'){setField('products',S.sel,'imageId','');S.imgMsg='';}
   else if(a==='newProduct'){S.modalMode='new';S.formErr='';renderModal();}
   else if(a==='saveNewProduct')saveNewProduct();
@@ -940,36 +770,37 @@ document.addEventListener('click',function(ev){
     render();
   }
   else if(a==='repToday'){S.rep.anchor=null;render();}
+  else if(a==='login'){
+    var pv=new firebase.auth.GoogleAuthProvider();S.loginErr='';
+    auth.signInWithPopup(pv).catch(function(er){
+      if(er&&er.code==='auth/popup-blocked')return auth.signInWithRedirect(pv);
+      S.loginErr='登入失敗（'+((er&&er.code)||'未知錯誤')+'）';render();
+    });
+  }
+  else if(a==='logout'){auth.signOut().then(function(){location.reload();});}
+  else if(a==='exportData'){S.exportText=exportAll();S.copyMsg='';render();}
+  else if(a==='copyExport'){
+    var ta=$('#exp-text');if(ta){ta.select();}
+    var okc=function(){S.copyMsg='已複製';render();},bad=function(){try{document.execCommand('copy');S.copyMsg='已複製';}catch(x){S.copyMsg='請手動全選複製';}render();};
+    try{navigator.clipboard.writeText(S.exportText).then(okc,bad);}catch(x){bad();}
+  }
+  else if(a==='importData')importAll();
   else if(a==='addItem'){var k=t.dataset.key,inp=$('#add-'+k),v=inp.value.trim();if(!v||list(k).indexOf(v)>=0)return;var pt={};pt[k]=list(k).concat([v]);saveSettings(pt);}
   else if(a==='delItem'){var k2=t.dataset.key,nm=t.dataset.name,pt2={};pt2[k2]=list(k2).filter(function(x){return x!==nm;});saveSettings(pt2);}
 });
-document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#modal').hidden&&!(S.restore&&S.restore.running))closeModal();});
+document.addEventListener('input',function(e){if(e.target&&e.target.id==='imp-text')S.impText=e.target.value;});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#modal').hidden)closeModal();});
 $('#search').addEventListener('input',function(e){S.q=e.target.value;render();});
 $('#role').addEventListener('change',function(e){
   S.role=e.target.value||null;
   try{localStorage.setItem('kinyo-role',S.role||'');}catch(x){}
-  if(db&&S.uid)db.doc('data/users/'+S.uid+'/profile').set({role:S.role||''}).catch(function(){});
+  if(db&&S.uid)db.doc('userprofiles/'+S.uid).set({role:S.role||''}).catch(function(){});
   render();renderModal();
 });
 document.addEventListener('change',function(e){
   var t=e.target;
   if(t.id==='tlModel'){S.tlModel=t.value;render();return;}
   if(t.id==='tlKol'){S.tlKol=t.checked;render();return;}
-  if(t.id==='bkDel'&&S.restore){S.restore.del=t.checked;renderModal();return;}
-  if(t.id==='bkFile'){
-    var bf=t.files&&t.files[0];t.value='';if(!bf)return;
-    if(!can('settings')){S.bkMsg='只有行銷角色可以還原資料。';render();return;}
-    var isJson=/\.json$/i.test(bf.name);
-    if(!isJson&&!window.XLSX){S.bkMsg='Excel 元件還沒載入完成，請稍後再試。';render();return;}
-    S.bkMsg='讀取檔案中…';render();
-    bf.arrayBuffer().then(function(buf){
-      if(isJson){var d=bkFromSnapshot(JSON.parse(new TextDecoder().decode(buf)));if(!d)throw new Error('format');S.bkMsg='';bkStart(d,'檔案 '+bf.name);render();return;}
-      var res=bkParseWorkbook(buf);
-      if(res.errs.length){S.bkMsg='這個檔案不是看板的備份格式：'+res.errs.join('；')+'。';render();return;}
-      S.bkMsg='';bkStart(res.data,'Excel 檔 '+bf.name);render();
-    }).catch(function(){S.bkMsg='無法讀取這個檔案，請確認是看板下載的備份 Excel。';render();});
-    return;
-  }
   if(t.id==='imgUp'){
     var f=t.files&&t.files[0],pid=S.sel;if(!f||!assetsNS||!pid)return;
     if(f.size>20*1024*1024){S.imgMsg='檔案超過 20MB，請先縮小。';renderModal();return;}
@@ -1029,34 +860,81 @@ function addSale(){
 /* ---------- data ---------- */
 function mapSnap(snap){var o={};snap.docs.forEach(function(d){var src=d.data()||{},x={};Object.keys(src).forEach(function(k){x[k]=src[k];});x.id=d.id;o[d.id]=x;});return o;}
 function subscribe(){
-  ['products','plans','kols','sales','backups'].forEach(function(name){
+  ['products','plans','kols','sales'].forEach(function(name){
     db.collection(name).onSnapshot(function(snap){
       S[name]=mapSnap(snap);S.loaded[name]=true;
       if(name==='products'){clearTimeout(timer);if(S.err==='slow')S.err='';}
-      bkAutoCheck();schedule();
-    },function(e){S.err=e&&e.code==='revoked'?'nodb':'slow';schedule();});
+      schedule();
+    },function(e){S.err=e&&e.code==='permission-denied'?'denied':'slow';schedule();});
   });
   db.doc('settings/lists').onSnapshot(function(snap){
     var d=snap.exists?snap.data():{},o={};Object.keys(d||{}).forEach(function(k){o[k]=d[k];});
-    S.settings=o;S.loaded.settings=true;bkAutoCheck();schedule();
+    S.settings=o;S.loaded.settings=true;schedule();
   },function(){});
   timer=setTimeout(function(){if(!S.loaded.products){S.err='slow';schedule();}},10000);
 }
-async function init(){
-  renderStatic();
-  try{if(window.claude&&window.claude.use)user=await window.claude.use('user');}catch(e){}
-  try{if(window.claude&&window.claude.use)db=await window.claude.use('db');}catch(e){}
-  if(!db){S.err='nodb';render();return;}
-  try{Promise.resolve(window.claude.use('assets')).then(function(a){assetsNS=a||null;bkAutoCheck();schedule();}).catch(function(){});Promise.resolve(window.claude.use('downloads')).then(function(a){downloadsNS=a||null;schedule();}).catch(function(){});}catch(e){}
-  try{S.uid=user&&user.id?await user.id():null;}catch(e){}
-  try{if(user&&user.can){S.canWrite=user.can('data.write')!==false;}}catch(e){}
+function makeAdapter(store){
+  function snapDoc(s){return {exists:s.exists,data:function(){return s.data();}};}
+  return {
+    doc:function(p){var r=store.doc(p);return {
+      set:function(d){return r.set(d);},
+      delete:function(){return r.delete();},
+      get:function(){return r.get().then(snapDoc);},
+      onSnapshot:function(ok,err){return r.onSnapshot(function(s){ok(snapDoc(s));},err);}
+    };},
+    collection:function(n){var c=store.collection(n);return {
+      onSnapshot:function(ok,err){return c.onSnapshot(function(s){ok({docs:s.docs.map(function(d){return {id:d.id,data:function(){return d.data();}};})});},err);}
+    };}
+  };
+}
+function uploadImage(file){
+  return new Promise(function(res,rej){
+    if(!/^image\/(png|jpeg|webp)$/.test(file.type)){rej({code:'unsupported_type'});return;}
+    var fr=new FileReader();
+    fr.onload=function(){var im=new Image();
+      im.onload=function(){
+        var sc=Math.min(1,640/Math.max(im.width,im.height)),c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round(im.width*sc));c.height=Math.max(1,Math.round(im.height*sc));
+        var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+        res({id:c.toDataURL('image/jpeg',0.82)});
+      };
+      im.onerror=function(){rej({});};im.src=fr.result;};
+    fr.onerror=function(){rej({});};fr.readAsDataURL(file);
+  });
+}
+function onUser(u){
+  if(!u){S.err='login';S.uid=null;S.userName='';db=null;render();return;}
+  S.uid=u.uid;S.userName=u.displayName||u.email||'';S.email=u.email||'';S.names[u.uid]=S.userName;
+  if(S.err==='login')S.err='';
+  db=makeAdapter(fs);
+  if(started){render();return;}
+  started=true;
   var role=null;
   try{role=localStorage.getItem('kinyo-role')||null;}catch(e){}
-  if(S.uid){try{var ps=await db.doc('data/users/'+S.uid+'/profile').get();if(ps.exists&&ps.data().role)role=ps.data().role;}catch(e){}}
-  S.role=ROLES.indexOf(role)>=0?role:null;
-  subscribe();render();
+  db.doc('userprofiles/'+u.uid).get().then(function(ps){if(ps.exists&&ps.data().role)role=ps.data().role;}).catch(function(){}).then(function(){
+    S.role=ROLES.indexOf(role)>=0?role:null;subscribe();render();
+  });
+}
+function init(){
+  renderStatic();
+  var cfg=window.FIREBASE_CONFIG;
+  if(!window.firebase||!cfg||!cfg.projectId||/貼上/.test(cfg.apiKey||'')){S.err='nodb';render();return;}
+  try{firebase.initializeApp(cfg);}catch(e){}
+  auth=firebase.auth();fs=firebase.firestore();
+  assetsNS={upload:uploadImage};
+  S.err='';render();
+  auth.onAuthStateChanged(onUser);
 }
 init();
+})();
+</script>
+<script>
+(function(){
+var home=document.getElementById('home'),app=document.getElementById('app');
+function show(){var b=location.hash==='#board';home.hidden=b;app.hidden=!b;window.scrollTo(0,0);}
+document.getElementById('enter').addEventListener('click',function(){location.hash='board';show();});
+document.querySelector('.brand').addEventListener('click',function(){location.hash='';history.replaceState(null,'',location.pathname+location.search);show();});
+window.addEventListener('hashchange',show);show();
 })();
 </script>
 </body>
